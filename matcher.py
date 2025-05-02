@@ -1,0 +1,235 @@
+#!/usr/bin/false
+
+import re
+from typing import List, Dict, Tuple
+from rapidfuzz import fuzz, utils as fuzzutils
+from collections import Counter
+from datetime import datetime
+from dateutil import parser as dateparser
+
+def extract_episode_hint(title: str) -> Tuple[int, int]:
+    """Attempts to parse season and episode numbers from the title."""
+    patterns = [
+        r'[Ss](\d+)[Ee](\d+)',                            # S2E3
+        r'[Ss]eason[^\d]*(\d+)[^\d]+Episode[^\d]*(\d+)', # Season 2 Episode 3
+        r'[Ss](\d+)[^\d]+Ep(?:isode)?[^\d]*(\d+)',       # S2 Ep 3
+        r'[Ee]pisode[^\d]*(\d+)',                        # Episode 3
+        r'[Ee]p[^\d]*(\d+)'                              # Ep 3
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, title, re.IGNORECASE)
+        if match:
+            groups = match.groups()
+            if len(groups) == 2:
+                return int(groups[0]), int(groups[1])
+            elif len(groups) == 1:
+                return -1, int(groups[0])
+    return -1, -1
+
+
+
+def build_token_frequencies(sonarr_data: List[Dict]) -> Dict[str, int]:
+    token_counts = Counter()
+    for entry in sonarr_data:
+        tokens = fuzzutils.default_process(entry["title"]).split()
+        token_counts.update(tokens)
+    return token_counts
+
+def compute_weighted_overlap(input_tokens: set, candidate_tokens: set, freq_map: Dict[str, int]) -> float:
+    if not candidate_tokens:
+        return 0.0
+
+    total_weight = 0
+    overlap_weight = 0
+
+    for token in candidate_tokens:
+        # Inverse frequency weight: more rare = more important
+        weight = 1 / freq_map.get(token, 1)
+        total_weight += weight
+        if token in input_tokens:
+            overlap_weight += weight
+
+    return overlap_weight / total_weight if total_weight > 0 else 0
+
+def parse_date(date_input) -> datetime:
+    try:
+        return dateparser.parse(str(date_input), fuzzy=True)
+    except (ValueError, TypeError):
+        return None
+
+def date_distance_days(date1_input, date2_input) -> int:
+    date1 = parse_date(date1_input)
+    date2 = parse_date(date2_input)
+    if date1 is None or date2 is None:
+        return -1
+    return abs((date1.date() - date2.date()).days)
+
+def score_candidate(input_title: str, main_title: str, season: int, episode: int,
+                    candidate: Dict, token_freq: Dict[str, int]) -> Tuple[int, str]:
+    score = 0
+    reasons = []
+
+    # if season != -1:
+    #     main_title += f" season {season}"
+
+    # if episode != -1:
+    #     main_title += f" episode {episode}"
+
+    if season != -1 and episode != -1:
+        if candidate["season"] == season and candidate["episode"] == episode:
+            score += 50
+            reasons.append("season/episode exact match")
+        else:
+            reasons.append("season/episode mismatch")
+
+    input_tokens = set(fuzzutils.default_process(main_title).split())
+    candidate_tokens = set(fuzzutils.default_process(candidate["title"]).split())
+
+    token_score = fuzz.token_set_ratio(main_title, candidate["title"])
+    weighted_recall = compute_weighted_overlap(input_tokens, candidate_tokens, token_freq)
+
+    score += int(token_score * 0.3)              # Up to 30
+    score += int(weighted_recall * 70)           # Up to 70
+
+    # Penalize missed tokens (input expected but not found)
+    missed_tokens = input_tokens - candidate_tokens
+    missed_penalty = len(missed_tokens) * 5
+    score -= missed_penalty
+    reasons.append(f"missed tokens: {len(missed_tokens)} (-{missed_penalty})")
+
+    # Penalize extra tokens (unexpected tokens in candidate)
+    extra_tokens = candidate_tokens - input_tokens
+    extra_penalty = len(extra_tokens) * 5  # Lighter penalty per extra token
+    score -= int(extra_penalty)
+    reasons.append(f"extra tokens: {len(extra_tokens)} (-{int(extra_penalty)})")
+
+    reasons.append(f"token set similarity: {token_score}%")
+    reasons.append(f"weighted keyword recall: {int(weighted_recall * 100)}%")
+
+    return score, "; ".join(reasons)
+
+def clean_text(text: str) -> str:
+    return re.sub(r'[^a-zA-Z0-9\s]', '', text).lower()
+
+def match_title_to_sonarr_episode(main_title: str, airdate: str, sonarr_data: List[Dict]) -> Dict:
+    """Attempts to match a streaming title to a Sonarr entry with weighted keyword and date proximity scoring."""
+    cleaned_title = clean_text(main_title)
+
+    cleaned_data = []
+    for entry in sonarr_data:
+        cleaned_entry = entry.copy()
+        cleaned_entry["series"] = clean_text(entry.get("series", ""))
+        cleaned_entry["title"] = clean_text(entry.get("title", ""))
+        cleaned_data.append(cleaned_entry)
+
+    token_freq = build_token_frequencies(cleaned_data)
+    season, episode = extract_episode_hint(cleaned_title)
+
+    best_match = None
+    best_score = -1
+    best_reason = ""
+
+    for candidate in cleaned_data:
+        score, reason = score_candidate(cleaned_title, cleaned_title, season, episode, candidate, token_freq)
+
+        # Date distance bonus
+        episode_date = candidate.get("air_date")
+        if episode_date != 0:
+            date_gap = date_distance_days(airdate, episode_date)
+            if date_gap >= 0:
+                # Closer dates = higher score boost (e.g. linear penalty)
+                date_score_bonus = max(0, 30.0 - date_gap)
+                score += date_score_bonus
+                reason += f" | date_gap={date_gap}d (bonus={date_score_bonus:.2f})"
+            else:
+                reason += " | no airdate match"
+
+        if score > best_score:
+            best_match = candidate
+            best_score = score
+            best_reason = reason
+
+    return {
+        "input": main_title,
+        "matched_show": best_match["series"] if best_match else None,
+        "season": best_match["season"] if best_match else None,
+        "episode": best_match["episode"] if best_match else None,
+        "episode_title": best_match["title"] if best_match else None,
+        "score": best_score,
+        "reason": best_reason
+    }
+
+
+def match_title_to_sonarr_episode_old(main_title: str, sonarr_data: List[Dict]) -> Dict:
+    """Attempts to match a streaming title to a Sonarr entry with weighted keyword matching."""
+    cleaned_title = clean_text(main_title)
+
+    # Deep copy of sonarr_data is not necessary if you're not mutating original
+    cleaned_data = []
+    for entry in sonarr_data:
+        cleaned_entry = entry.copy()
+        cleaned_entry["series"] = clean_text(entry.get("series", ""))
+        cleaned_entry["title"] = clean_text(entry.get("title", ""))
+        cleaned_data.append(cleaned_entry)
+
+    token_freq = build_token_frequencies(cleaned_data)
+    season, episode = extract_episode_hint(cleaned_title)
+
+    best_match = None
+    best_score = -1
+    best_reason = ""
+
+    for candidate in cleaned_data:
+        score, reason = score_candidate(cleaned_title, cleaned_title, season, episode, candidate, token_freq)
+        if score > best_score:
+            best_match = candidate
+            best_score = score
+            best_reason = reason
+
+    return {
+        "input": main_title,
+        "matched_show": best_match["series"] if best_match else None,
+        "season": best_match["season"] if best_match else None,
+        "episode": best_match["episode"] if best_match else None,
+        "episode_title": best_match["title"] if best_match else None,
+        "score": best_score,
+        "reason": best_reason
+    }
+
+def match_title_to_sonarr_show(main_title: str, sonarr_shows: List[str]) -> Dict:
+    """Matches a streaming title to the best-matching Sonarr show using strict verbatim and token-based scoring."""
+    input_tokens = set(fuzzutils.default_process(main_title).split())
+
+    best_match = None
+    best_score = -1
+    best_reason = ""
+
+    for show_title in set(sonarr_shows):
+        processed_show = fuzzutils.default_process(show_title)
+        show_tokens = set(processed_show.split())
+
+        # Priority boost if show name appears verbatim
+        verbatim_match = processed_show in fuzzutils.default_process(main_title)
+        verbatim_bonus = 40 if verbatim_match else 0
+
+        # Token similarity and keyword overlap
+        token_score = fuzz.token_set_ratio(main_title, show_title)
+        keyword_overlap = len(show_tokens & input_tokens) / len(show_tokens) if show_tokens else 0
+
+        score = verbatim_bonus + int(token_score * 0.10) + int(keyword_overlap * 50)
+
+        reason = f"{'verbatim match; ' if verbatim_match else ''}" \
+                 f"token set similarity: {token_score}%, " \
+                 f"keyword overlap: {int(keyword_overlap * 100)}%"
+
+        if score > best_score:
+            best_match = show_title
+            best_score = score
+            best_reason = reason
+
+    return {
+        "input": main_title,
+        "matched_show": best_match,
+        "score": best_score,
+        "reason": best_reason
+    }
