@@ -3,7 +3,7 @@
 import os
 import requests
 
-def get_unmonitored_series():
+def get_monitored_series():
   sonarr_url = os.getenv("CF_SONARR_URL")
   api_key = os.getenv("CF_SONARR_API")
 
@@ -16,9 +16,9 @@ def get_unmonitored_series():
   response.raise_for_status()
   series_list = response.json()
 
-  # Filter only unmonitored series and return their titles
-  unmonitored_titles = [s['title'] for s in series_list if s.get('monitored', True)]
-  return unmonitored_titles
+  # Filter only monitored series and return their titles
+  monitored_titles = [s['title'] for s in series_list if s.get('monitored', True)]
+  return monitored_titles
 
 if __name__ == "__main__":
-  print(repr(get_unmonitored_series()))
+  print(repr(get_monitored_series()))
