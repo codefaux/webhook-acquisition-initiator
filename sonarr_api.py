@@ -12,6 +12,32 @@ if not SONARR_URL or not API_KEY:
 
 HEADERS = {"X-Api-Key": API_KEY}
 
+def validate_sonarr_config() -> bool:
+    """
+    Validates the Sonarr URL and API key by checking the /api/v3/health endpoint.
+    
+    Args:
+        sonarr_url (str): The base URL of the Sonarr instance.
+        api_key (str): The API key for Sonarr.
+
+    Returns:
+        bool: True if configuration is valid, False otherwise.
+    """
+    url = f"{SONARR_URL.rstrip('/')}/api/v3/health"
+    headers = {"X-Api-Key": API_KEY}
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            print("Sonarr configuration is valid.")
+            return True
+        else:
+            print(f"Unexpected response status: {response.status_code}. Check URL and API key.")
+            return False
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to connect to Sonarr: {e}")
+        return False
+
 def get_all_series():
     """Returns a list of monitored show titles from Sonarr."""
     response = requests.get(f"{SONARR_URL.rstrip('/')}/api/v3/series", headers=HEADERS)

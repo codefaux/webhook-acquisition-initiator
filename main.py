@@ -7,6 +7,7 @@ import os
 
 from server import app
 from queue_manager import process_queue, load_queue
+from sonarr_api import validate_sonarr_config
 
 DATA_DIR = os.getenv("DATA_DIR")
 
@@ -24,6 +25,10 @@ def start_background_processor():
 
 if __name__ == "__main__":
     os.makedirs(DATA_DIR, exist_ok=True)
+
+    if not validate_sonarr_config():
+        exit("Sonarr connection failed. Please check your configuration.")
+        
     load_queue()
 
     # Register graceful shutdown signals
