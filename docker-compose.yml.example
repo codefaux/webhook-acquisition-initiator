@@ -1,0 +1,20 @@
+services:
+  webhook-acquisition-initiator:
+    image: wai
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      SONARR_URL: http://sonarr:8989/
+      SONARR_API: UNSET  # Replace with your actual API key
+      SONARR_IN_PATH: /mnt/sonarr
+      DATA_DIR: /data
+      WAI_OUT_PATH: /output
+      HONOR_UNMON_EPS: "0"
+      HONOR_UNMON_SERIES: "1"
+      OVERWRITE_EPS: "0"
+    volumes:
+      - ./data:/data
+      - ./output:/output
