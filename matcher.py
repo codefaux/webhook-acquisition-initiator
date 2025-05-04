@@ -64,7 +64,7 @@ def date_distance_days(date1_input, date2_input) -> int:
         return -1
     return abs((date1.date() - date2.date()).days)
 
-def score_candidate(input_title: str, main_title: str, season: int, episode: int,
+def score_candidate(main_title: str, season: int, episode: int,
                     candidate: Dict, token_freq: Dict[str, int]) -> Tuple[int, str]:
     score = 0
     reasons = []
@@ -99,7 +99,7 @@ def score_candidate(input_title: str, main_title: str, season: int, episode: int
 
     # Penalize extra tokens (unexpected tokens in candidate)
     extra_tokens = candidate_tokens - input_tokens
-    extra_penalty = len(extra_tokens) * 5  # Lighter penalty per extra token
+    extra_penalty = len(extra_tokens) * 2.5  # Lighter penalty per extra token
     score -= int(extra_penalty)
     reasons.append(f"extra tokens: {len(extra_tokens)} (-{int(extra_penalty)})")
 
@@ -130,7 +130,7 @@ def match_title_to_sonarr_episode(main_title: str, airdate: str, sonarr_data: Li
     best_reason = ""
 
     for candidate in cleaned_data:
-        score, reason = score_candidate(cleaned_title, cleaned_title, season, episode, candidate, token_freq)
+        score, reason = score_candidate(cleaned_title, season, episode, candidate, token_freq)
 
         # Date distance bonus
         episode_date = candidate.get("air_date")
@@ -138,11 +138,11 @@ def match_title_to_sonarr_episode(main_title: str, airdate: str, sonarr_data: Li
             date_gap = date_distance_days(airdate, episode_date)
             if date_gap >= 0:
                 # Closer dates = higher score boost (e.g. linear penalty)
-                date_score_bonus = max(0, 30.0 - date_gap)
+                date_score_bonus = max(0, 50.0 - (date_gap*25))
                 score += date_score_bonus
-                reason += f" | date_gap={date_gap}d (bonus={date_score_bonus:.2f})"
+                reason += f"; date_gap={date_gap}d (bonus={date_score_bonus:.2f})"
             else:
-                reason += " | no airdate match"
+                reason += "; no airdate match"
 
         if score > best_score:
             best_match = candidate
@@ -159,52 +159,16 @@ def match_title_to_sonarr_episode(main_title: str, airdate: str, sonarr_data: Li
         "reason": best_reason
     }
 
-
-def match_title_to_sonarr_episode_old(main_title: str, sonarr_data: List[Dict]) -> Dict:
-    """Attempts to match a streaming title to a Sonarr entry with weighted keyword matching."""
-    cleaned_title = clean_text(main_title)
-
-    # Deep copy of sonarr_data is not necessary if you're not mutating original
-    cleaned_data = []
-    for entry in sonarr_data:
-        cleaned_entry = entry.copy()
-        cleaned_entry["series"] = clean_text(entry.get("series", ""))
-        cleaned_entry["title"] = clean_text(entry.get("title", ""))
-        cleaned_data.append(cleaned_entry)
-
-    token_freq = build_token_frequencies(cleaned_data)
-    season, episode = extract_episode_hint(cleaned_title)
-
-    best_match = None
-    best_score = -1
-    best_reason = ""
-
-    for candidate in cleaned_data:
-        score, reason = score_candidate(cleaned_title, cleaned_title, season, episode, candidate, token_freq)
-        if score > best_score:
-            best_match = candidate
-            best_score = score
-            best_reason = reason
-
-    return {
-        "input": main_title,
-        "matched_show": best_match["series"] if best_match else None,
-        "season": best_match["season"] if best_match else None,
-        "episode": best_match["episode"] if best_match else None,
-        "episode_title": best_match["title"] if best_match else None,
-        "score": best_score,
-        "reason": best_reason
-    }
-
-def match_title_to_sonarr_show(main_title: str, sonarr_shows: List[str]) -> Dict:
+def match_title_to_sonarr_show(main_title: str, sonarr_shows) -> Dict:
     """Matches a streaming title to the best-matching Sonarr show using strict verbatim and token-based scoring."""
     input_tokens = set(fuzzutils.default_process(main_title).split())
 
     best_match = None
     best_score = -1
     best_reason = ""
+    best_id = ""
 
-    for show_title in set(sonarr_shows):
+    for show_title, show_id in set(sonarr_shows):
         processed_show = fuzzutils.default_process(show_title)
         show_tokens = set(processed_show.split())
 
@@ -223,12 +187,14 @@ def match_title_to_sonarr_show(main_title: str, sonarr_shows: List[str]) -> Dict
                  f"keyword overlap: {int(keyword_overlap * 100)}%"
 
         if score > best_score:
+            best_id = show_id
             best_match = show_title
             best_score = score
             best_reason = reason
 
     return {
         "input": main_title,
+        "matched_id": best_id,
         "matched_show": best_match,
         "score": best_score,
         "reason": best_reason
