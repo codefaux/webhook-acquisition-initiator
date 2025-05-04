@@ -11,9 +11,9 @@ ANSI_RED = '\033[91m'
 ANSI_GREY = '\033[90m'
 ANSI_RESET = '\033[0m'
 
-data_dir = "./data"
-netrc_file = os.path.join(data_dir, "netrc")
-ytdlpconf_file = os.path.join(data_dir, "yt-dlp.conf")
+DATA_DIR = os.getenv("DATA_DIR")
+netrc_file = os.path.join(DATA_DIR, "netrc")
+ytdlpconf_file = os.path.join(DATA_DIR, "yt-dlp.conf")
 using_netrc = os.path.exists(netrc_file)
 using_ytdlpconf = os.path.exists(ytdlpconf_file)
 

@@ -12,7 +12,10 @@ from matcher import match_title_to_sonarr_show, match_title_to_sonarr_episode
 from sonarr_api import get_all_series, is_monitored_series, get_episode_data_for_shows, import_downloaded_episode, is_monitored_episode, is_episode_file
 from ytdlp_interface import download_video
 
-QUEUE_FILE = "data/queue.json"
+DATA_DIR = os.getenv("DATA_DIR")
+
+
+QUEUE_FILE = os.path.join(DATA_DIR, "queue.json")
 queue_lock = threading.Lock()
 queue_condition = threading.Condition(lock=queue_lock)
 queue = []
@@ -39,7 +42,7 @@ def save_queue():
         json.dump(queue, f, indent=2)
 
 def save_item(item, file: str):
-    file_path = os.path.join("data", file)
+    file_path = os.path.join(DATA_DIR, file)
 
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
 

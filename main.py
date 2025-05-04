@@ -8,6 +8,8 @@ import os
 from server import app
 from queue_manager import process_queue, load_queue
 
+DATA_DIR = os.getenv("DATA_DIR")
+
 stop_event = threading.Event()
 
 def handle_exit_signal(signum, frame):
@@ -21,7 +23,7 @@ def start_background_processor():
     return processor_thread
 
 if __name__ == "__main__":
-    os.makedirs("data", exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
     load_queue()
 
     # Register graceful shutdown signals
