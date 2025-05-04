@@ -3,3 +3,4 @@ output/**
 data/**
 temp/**
 .vscode/launch.json
+docker-compose.yml
