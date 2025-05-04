@@ -13,6 +13,15 @@ if not SONARR_URL or not API_KEY:
 HEADERS = {"X-Api-Key": API_KEY}
 sonarr_data = []
 
+def search_local_series(query):
+    """Search for a show by title from locally added series only."""
+    response = requests.get(f"{SONARR_URL}/api/v3/series", headers=HEADERS)
+    response.raise_for_status()
+    series_list = response.json()
+
+    query_lower = query.lower()
+    return [s for s in series_list if query_lower in s['title'].lower()]
+
 def search_series(query):
     r = requests.get(f"{SONARR_URL}/api/v3/series/lookup", params={"term": query}, headers=HEADERS)
     r.raise_for_status()
@@ -29,7 +38,7 @@ while True:
         break
 
     try:
-        results = search_series(query)
+        results = search_local_series(query)
     except Exception as e:
         print(f"Error searching for series: {e}")
         continue
