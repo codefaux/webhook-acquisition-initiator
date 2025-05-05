@@ -94,7 +94,16 @@ def tag_filename(file_filepath):
 
     print(f"[Tagger] File renamed: {new_filepath}")
 
-    return new_filepath or file_filepath;
+    return new_filepath or file_filepath
+
+def dequeue(item: dict):
+    with queue_condition:
+        for i, q_item in enumerate(queue):
+            if q_item == item:
+                del queue[i]
+                save_queue()
+                return {"status": "removed"}
+        return {"error": "Item not found in queue"}
 
 def process_queue(stop_event: threading.Event):
     show_titles = get_all_series()
@@ -106,18 +115,20 @@ def process_queue(stop_event: threading.Event):
 
             if queue:
                 item = queue.pop(0)
+                save_item(item, "all_processed.json")
                 save_queue()
 
         if item:
             print(f"[QueueProcessor] Processing item: {item}")
-            save_item(item, "all_processed.json")
 
             main_title = f"{item.get('creator', '')} :: {item.get('title', '')}"
             title_result = match_title_to_sonarr_show(main_title, show_titles)
+            item['title_result'] = title_result
             print(f"[Matcher] Match result: title -> show: {title_result.get('matched_show')} id: {title_result.get('matched_id')} score: {title_result.get('score')}")
 
             if title_result['score'] < 70:
                     print(f"[Matcher] Series match score not high enough. ({title_result['score']} < 70)  Aborting.")
+                    item['title_result'] = title_result
                     save_item(item, "series_score.json")
                     continue # no error condition
 
@@ -125,11 +136,13 @@ def process_queue(stop_event: threading.Event):
             if HONOR_UNMON_SERIES:
                 if not is_monitored_series(title_result['matched_id']):
                     print(f"[Matcher] Series NOT monitored. Aborting.")
+                    item['title_result'] = title_result
                     save_item(item, "unmonitored_series.json")
                     continue # no error condition
 
             show_data = get_episode_data_for_shows(title_result.get('matched_show'), title_result.get('matched_id'))
             episode_result = match_title_to_sonarr_episode(main_title, item.get('datecode', -1), show_data)
+            item['episode_result'] = episode_result
             print(f"[Matcher] Match result: title -> episode: {episode_result}")
 
 
@@ -151,9 +164,10 @@ def process_queue(stop_event: threading.Event):
                     continue # no error condition
 
             download_filename = download_video(item.get('url'), WAI_OUT_TEMP or WAI_OUT_PATH)
+            item['download_filename'] = download_filename
 
             if not download_filename:
-                print(f"[Downloader] No file. Aborting thread.")
+                print(f"[Downloader] No file. Aborting thread. (API will still function.)")
                 save_item(item, "download_fail.json")
                 sys.exit(1) # error condition
 
@@ -170,6 +184,7 @@ def process_queue(stop_event: threading.Event):
             import_result = import_downloaded_episode(title_result.get('matched_id'), episode_result.get('season'), episode_result.get('episode'), file_name, SONARR_IN_PATH)
 
             print(f"[Sonarr] Import result: {import_result['status']}")
+            item['import_result'] = import_result
             save_item(item, "pass.json")
 
             time.sleep(1)
