@@ -5,7 +5,7 @@ import threading
 import signal
 import os
 
-from server import app
+from server import fastapi
 from queue_manager import process_queue, load_queue
 from sonarr_api import validate_sonarr_config
 
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     processor_thread = start_background_processor()
 
     try:
-        uvicorn.run(app, host="0.0.0.0", port=8000)
+        uvicorn.run(fastapi, host="0.0.0.0", port=8000)
     finally:
         stop_event.set()
         processor_thread.join()

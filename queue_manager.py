@@ -13,7 +13,7 @@ from sonarr_api import get_all_series, is_monitored_series, get_episode_data_for
 from ytdlp_interface import download_video
 
 DATA_DIR = os.getenv("DATA_DIR")
-
+item = None
 
 QUEUE_FILE = os.path.join(DATA_DIR, "queue.json")
 queue_lock = threading.Lock()
@@ -130,6 +130,7 @@ def process_queue(stop_event: threading.Event):
                     print(f"[Matcher] Series match score not high enough. ({title_result['score']} < 70)  Aborting.")
                     item['title_result'] = title_result
                     save_item(item, "series_score.json")
+                    item = None
                     continue # no error condition
 
 
@@ -138,6 +139,7 @@ def process_queue(stop_event: threading.Event):
                     print(f"[Matcher] Series NOT monitored. Aborting.")
                     item['title_result'] = title_result
                     save_item(item, "unmonitored_series.json")
+                    item = None
                     continue # no error condition
 
             show_data = get_episode_data_for_shows(title_result.get('matched_show'), title_result.get('matched_id'))
@@ -149,18 +151,21 @@ def process_queue(stop_event: threading.Event):
             if episode_result['score'] < 70:
                     print(f"[Matcher] Episode match score not high enough. ({episode_result['score']} < 70)  Aborting.")
                     save_item(item, "episode_score.json")
+                    item = None
                     continue # no error condition
 
             if HONOR_UNMON_EPS:
                 if not is_monitored_episode(title_result.get('matched_id'), episode_result.get('season'), episode_result.get('episode')):
                     print(f"[Matcher] Episode NOT monitored. Aborting.")
                     save_item(item, "unmonitored_episode.json")
+                    item = None
                     continue # no error condition
 
             if not OVERWRITE_EPS:
                 if is_episode_file(title_result.get('matched_id'), episode_result.get('season'), episode_result.get('episode')):
                     print(f"[Matcher] Episode has file. Aborting.")
                     save_item(item, "episode_has_file.json")
+                    item = None
                     continue # no error condition
 
             download_filename = download_video(item.get('url'), WAI_OUT_TEMP or WAI_OUT_PATH)
@@ -169,6 +174,7 @@ def process_queue(stop_event: threading.Event):
             if not download_filename:
                 print(f"[Downloader] No file. Aborting thread. (API will still function.)")
                 save_item(item, "download_fail.json")
+                item = None
                 sys.exit(1) # error condition
 
             print(f"[Downloader] Download returned: {download_filename}")
@@ -186,5 +192,6 @@ def process_queue(stop_event: threading.Event):
             print(f"[Sonarr] Import result: {import_result['status']}")
             item['import_result'] = import_result
             save_item(item, "pass.json")
+            item = None
 
             time.sleep(1)

@@ -49,7 +49,7 @@ def get_json_item(from_file: str, name: str = None, value: str = None) -> dict:
         return {"error": "Expected a list of JSON objects"}
 
     if name is None and value is None:
-        return {"item": data}
+        return data
 
     filtered = []
     for entry in data:
@@ -64,9 +64,37 @@ def get_json_item(from_file: str, name: str = None, value: str = None) -> dict:
                 if value in map(str, entry.values()):
                     filtered.append(entry)
 
-    return {"item": filtered}
+    return filtered
 
-def remove_json_item(from_file: str, name: str = None, value: str = None) -> dict:
+def add_json_item(to_file: str, item: dict) -> dict:
+    to_file = to_file.lower()
+    if not to_file.endswith(".json"):
+        to_file += ".json"
+
+    if to_file == "queue.json":
+        return {"error": "Cannot operate directly on queue"}
+
+    file_path = os.path.join(DATA_DIR, to_file)
+
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            return {"error": "Invalid JSON format"}
+        if not isinstance(data, list):
+            return {"error": "Expected a list of JSON objects"}
+    else:
+        data = []
+
+    data.append(item)
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+    return {"added": item}
+
+def remove_json_item(from_file: str, item: dict) -> dict:
     from_file = from_file.lower()
     if not from_file.endswith(".json"):
         from_file += ".json"
@@ -95,15 +123,7 @@ def remove_json_item(from_file: str, name: str = None, value: str = None) -> dic
             remaining.append(entry)
             continue
 
-        match = False
-        if name and value:
-            match = str(entry.get(name)) == value
-        elif name:
-            match = name in entry
-        elif value:
-            match = value in map(str, entry.values())
-
-        if match:
+        if item == entry:
             removed.append(entry)
         else:
             remaining.append(entry)
