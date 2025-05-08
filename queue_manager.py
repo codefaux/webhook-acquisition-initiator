@@ -26,7 +26,7 @@ WAI_OUT_PATH = os.getenv("WAI_OUT_PATH", "./output")
 HONOR_UNMON_SERIES = os.getenv("HONOR_UNMON_SERIES", 1) == 1
 HONOR_UNMON_EPS = os.getenv("HONOR_UNMON_EPS", 1) == 1
 OVERWRITE_EPS = os.getenv("OVERWRITE_EPS", 0) == 1
-QUEUE_INTERVAL = os.getenv("QUEUE_INTERVAL", 5)
+QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
 
 def load_queue():
     if os.path.exists(QUEUE_FILE):
