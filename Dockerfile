@@ -5,9 +5,6 @@ ENV PYTHONUNBUFFERED=1
 # Install essential tools
 RUN apt-get update && apt-get install -y curl ca-certificates xz-utils && rm -rf /var/lib/apt/lists/*
 
-# Install Python packages
-RUN pip install -r requirements.txt
-
 # Install ffmpeg static from johnvansickle.com
 RUN curl -L -o ffmpeg-release.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && \
     tar -xvf ffmpeg-release.tar.xz && \
@@ -16,11 +13,12 @@ RUN curl -L -o ffmpeg-release.tar.xz https://johnvansickle.com/ffmpeg/releases/f
     cd .. && \
     rm -rf ffmpeg-release.tar.xz ffmpeg-*-amd64-static
 
-# Set working directory
-WORKDIR /app
-
 # Copy application code
-COPY main.py matcher.py processor.py queue_manager.py server.py sonarr_api.py ytdlp_interface.py /app/
+COPY requirements.txt main.py matcher.py processor.py queue_manager.py server.py sonarr_api.py ytdlp_interface.py /app/
+
+# Install Python packages
+WORKDIR /app
+RUN pip install -r requirements.txt
 
 # Create mount point for data
 VOLUME ["/data"]
