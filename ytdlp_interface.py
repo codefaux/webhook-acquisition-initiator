@@ -28,7 +28,6 @@ def download_video(video_url, target_folder):
     ensure_dir(target_folder)
     cmd = [
         "yt-dlp",
-        "--cookies-from-browser", "chromium",
         "--no-warnings",
         "--no-check-certificate",
         "--write-info-json",
