@@ -26,6 +26,7 @@ WAI_OUT_PATH = os.getenv("WAI_OUT_PATH", "./output")
 HONOR_UNMON_SERIES = os.getenv("HONOR_UNMON_SERIES", 1) == 1
 HONOR_UNMON_EPS = os.getenv("HONOR_UNMON_EPS", 1) == 1
 OVERWRITE_EPS = os.getenv("OVERWRITE_EPS", 0) == 1
+QUEUE_INTERVAL = os.getenv("QUEUE_INTERVAL", 5)
 
 def load_queue():
     if os.path.exists(QUEUE_FILE):
@@ -111,7 +112,7 @@ def process_queue(stop_event: threading.Event):
     while not stop_event.is_set():
         with queue_condition:
             while not queue and not stop_event.is_set():
-                queue_condition.wait(timeout=1)
+                queue_condition.wait(timeout=QUEUE_INTERVAL*60)
 
             if queue:
                 item = queue.pop(0)

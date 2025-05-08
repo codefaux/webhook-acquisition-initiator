@@ -15,6 +15,7 @@ services:
       HONOR_UNMON_EPS: "0"
       HONOR_UNMON_SERIES: "1"
       OVERWRITE_EPS: "0"
+      QUEUE_INTERVAL: "15"
     volumes:
       - ./data:/data
       - ./output:/output
