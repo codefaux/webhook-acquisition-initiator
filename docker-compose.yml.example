@@ -1,5 +1,6 @@
 services:
   webhook-acquisition-initiator:
+    container_name: wai
     image: wai
     # build:
     #   context: .
