@@ -4,3 +4,6 @@ nicegui
 pycountry
 rapidfuzz
 python-dateutil
+requests
+prettytable
+pathlib

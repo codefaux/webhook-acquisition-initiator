@@ -6,7 +6,7 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y curl ca-certificates xz-utils && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages
-RUN pip install yt-dlp requests prettytable pathlib pycountry rapidfuzz uvicorn fastapi python-dateutil
+RUN pip install -r requirements.txt
 
 # Install ffmpeg static from johnvansickle.com
 RUN curl -L -o ffmpeg-release.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && \
