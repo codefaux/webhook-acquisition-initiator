@@ -195,6 +195,5 @@ def process_queue(stop_event: threading.Event):
             save_item(item, "pass.json")
             item = None
 
-            time.sleep(1)
-        
-        queue_condition.wait(timeout=QUEUE_INTERVAL*60)
+            with queue_condition:
+                queue_condition.wait(timeout=QUEUE_INTERVAL * 60)
