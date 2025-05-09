@@ -41,7 +41,7 @@ def download_video(video_url, target_folder):
     if using_netrc:
         cmd[1:1] = ["--netrc", "--netrc-location", netrc_file]
 
-    print(f"{ANSI_GREEN}Starting download of '{video_url}' - netrc {using_netrc}, yt-dlp.conf {using_ytdlpconf}")
+    print(f"{ANSI_GREEN}Starting download of '{video_url}' - {ANSI_YELLOW}netrc {ANSI_GREEN if using_netrc else ANSI_RED}{using_netrc}, {ANSI_YELLOW}yt-dlp.conf {ANSI_GREEN if using_ytdlpconf else ANSI_RED}{using_ytdlpconf}{ANSI_RESET}")
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
