@@ -5,8 +5,9 @@ import os
 import sys
 import shutil
 import threading
-import time
 import pycountry
+import logger as _log
+
 from pathlib import Path
 from matcher import match_title_to_sonarr_show, match_title_to_sonarr_episode
 from sonarr_api import get_all_series, is_monitored_series, get_episode_data_for_shows, import_downloaded_episode, is_monitored_episode, is_episode_file
@@ -36,7 +37,7 @@ def load_queue():
                 if isinstance(data, list):
                     queue.extend(data)
             except json.JSONDecodeError:
-                print("Failed to decode queue JSON; starting with empty queue.")
+                _log.msg("Failed to decode queue JSON; starting with empty queue.")
 
 def save_queue():
     with open(QUEUE_FILE, "w") as f:
@@ -51,7 +52,7 @@ def load_item(file:str, remove_after: bool = False):
             try:
                 item = json.load(f)
             except json.JSONDecodeError:
-                print(f"Failed to decode JSON '{file_path}' ; returning None.")
+                _log.msg(f"Failed to decode JSON '{file_path}' ; returning None.")
         if remove_after:
             os.remove(file_path)
         return item
@@ -74,10 +75,10 @@ def save_item(item, file: str, replace: bool = False):
                 with open(file_path, "r") as f:
                     existing_items = json.load(f)
                     if not isinstance(existing_items, list):
-                        print(f"[save_item] Warning: Expected list in {file}, got {type(existing_items)}. Overwriting.")
+                        _log.msg(f"Warning: Expected list in {file}, got {type(existing_items)}. Overwriting.")
                         existing_items = []
             except json.JSONDecodeError:
-                print(f"[save_item] Warning: Failed to decode {file}. Overwriting.")
+                _log.msg(f"Warning: Failed to decode {file}. Overwriting.")
         
         existing_items.append(item)
     else:
@@ -102,7 +103,7 @@ def tag_filename(file_filepath):
             try:
                 file_data = json.load(f)
             except json.JSONDecodeError:
-                print("Failed to decode file JSON; skipping retag.")
+                _log.msg("Failed to decode file JSON; skipping retag.")
                 return file_filepath
 
     file_width = file_data['width']
@@ -119,7 +120,7 @@ def tag_filename(file_filepath):
 
         lang_id, lang_prob = identifier.classify(classify_string)
 
-        print(f"lang_id: {lang_id}\tlang_condifence: {lang_prob}")
+        _log.msg(f"lang_id: {lang_id}\tlang_condifence: {lang_prob}")
         file_lang = pycountry.languages.get(alpha_2=lang_id)
     else:
         file_lang = pycountry.languages.get(alpha_2=file_lang)
@@ -133,7 +134,7 @@ def tag_filename(file_filepath):
     new_filepath = file_path.with_name(new_name)
     file_path.rename(new_filepath)
 
-    print(f"[Tagger] File renamed: {new_filepath}")
+    _log.msg(f"File renamed: {new_filepath}")
 
     return new_filepath or file_filepath
 
@@ -162,25 +163,24 @@ def process_queue(stop_event: threading.Event):
                 save_queue()
 
         if item:
-            print(f"[QueueProcessor] Processing item: {item}")
+            _log.msg(f"Processing item:\n{_log._GREEN}creator:{_log._RESET} {item.get('creator','')}{_log._GREEN}\ttitle:{_log._RESET} {item.get('title','')}\n\t{_log._GREEN}datecode:{_log._RESET} {item.get('datecode','')}\t{_log._GREEN}url:{_log._RESET} {item.get('url','')}")
 
             main_title = f"{item.get('creator', '')} :: {item.get('title', '')}"
             title_result = match_title_to_sonarr_show(main_title, show_titles)
             item['title_result'] = title_result
-            print(f"[Matcher] Match result: title -> show: {title_result.get('matched_show')} id: {title_result.get('matched_id')} score: {title_result.get('score')}")
+            _log.msg(f"Match result: title -> show\n{_log._YELLOW}input:{_log._RESET}\t'{main_title}'\n{_log._BLUE}score:{_log._RESET} {title_result.get('score')}\t{_log._GREEN}matched show:{_log._RESET} '{title_result.get('matched_show')}' {_log._YELLOW}(id:{title_result.get('matched_id')}{_log._RESET})")
 
             if title_result['score'] < 70:
-                    print(f"[Matcher] Series match score not high enough. ({title_result['score']} < 70)  Aborting.")
+                    _log.msg(f"Series match score not high enough. ({title_result['score']} < 70)  Aborting.")
                     item['title_result'] = title_result
                     save_item(item, "series_score.json")
                     delete_item_file("current_item")
                     item = None
                     continue # no error condition
 
-
             if HONOR_UNMON_SERIES:
                 if not is_monitored_series(title_result['matched_id']):
-                    print(f"[Matcher] Series NOT monitored. Aborting.")
+                    _log.msg(f"Series NOT monitored. Aborting.")
                     item['title_result'] = title_result
                     save_item(item, "unmonitored_series.json")
                     delete_item_file("current_item")
@@ -190,11 +190,10 @@ def process_queue(stop_event: threading.Event):
             show_data = get_episode_data_for_shows(title_result.get('matched_show'), title_result.get('matched_id'))
             episode_result = match_title_to_sonarr_episode(main_title, item.get('datecode', -1), show_data)
             item['episode_result'] = episode_result
-            print(f"[Matcher] Match result: title -> episode: {episode_result}")
-
+            _log.msg(f"Match result: title -> episode:\n{_log._YELLOW}input:{_log._RESET}\t'{main_title}'\n{_log._BLUE}score:{_log._RESET} {episode_result.get('score', 0)}  {_log._GREEN}season:{_log._RESET} {episode_result.get('season', 0)}  {_log._GREEN}episode:{_log._RESET} {episode_result.get('episode')}\n\t{_log._GREEN}title:{_log._RESET} {episode_result.get('episode_orig_title', '')}  {_log._GREEN}\n\treasons:{_log._RESET} {episode_result.get('reason', '')}")
 
             if episode_result['score'] < 70:
-                    print(f"[Matcher] Episode match score not high enough. ({episode_result['score']} < 70)  Aborting.")
+                    _log.msg(f"Episode match score not high enough. ({episode_result['score']} < 70)  Aborting.")
                     save_item(item, "episode_score.json")
                     delete_item_file("current_item")
                     item = None
@@ -202,7 +201,7 @@ def process_queue(stop_event: threading.Event):
 
             if HONOR_UNMON_EPS:
                 if not is_monitored_episode(title_result.get('matched_id'), episode_result.get('season'), episode_result.get('episode')):
-                    print(f"[Matcher] Episode NOT monitored. Aborting.")
+                    _log.msg(f"Episode NOT monitored. Aborting.")
                     save_item(item, "unmonitored_episode.json")
                     delete_item_file("current_item")
                     item = None
@@ -210,7 +209,7 @@ def process_queue(stop_event: threading.Event):
 
             if not OVERWRITE_EPS:
                 if is_episode_file(title_result.get('matched_id'), episode_result.get('season'), episode_result.get('episode')):
-                    print(f"[Matcher] Episode has file. Aborting.")
+                    _log.msg(f"Episode has file. Aborting.")
                     save_item(item, "episode_has_file.json")
                     delete_item_file("current_item")
                     item = None
@@ -220,13 +219,13 @@ def process_queue(stop_event: threading.Event):
             item['download_filename'] = download_filename
 
             if not download_filename:
-                print(f"[Downloader] No file. Aborting thread. (API will still function.)")
+                _log.msg(f"No file. Aborting thread. (API will still function.)")
                 save_item(item, "download_fail.json")
                 delete_item_file("current_item")
                 item = None
                 sys.exit(1) # error condition
 
-            print(f"[Downloader] Download returned: {download_filename}")
+            _log.msg(f"Download returned: {download_filename}")
 
             tag_filepath = tag_filename(download_filename)
             file_name = os.path.basename(tag_filepath)
@@ -234,11 +233,11 @@ def process_queue(stop_event: threading.Event):
             if WAI_OUT_TEMP:  # NOT WORKING 
                 shutil.copy(tag_filepath, os.path.abspath(WAI_OUT_PATH))
                 os.remove(tag_filepath)
-                print(f"[Downloader] Moved: {tag_filepath} \n\t-> To: {os.path.abspath(WAI_OUT_PATH)}")
+                _log.msg(f"Moved: {tag_filepath} \n\t-> To: {os.path.abspath(WAI_OUT_PATH)}")
 
             import_result = import_downloaded_episode(title_result.get('matched_id'), episode_result.get('season'), episode_result.get('episode'), file_name, SONARR_IN_PATH)
 
-            print(f"[Sonarr] Import result: {import_result['status']}")
+            _log.msg(f"Sonarr Import result: {import_result['status']}")
             item['import_result'] = import_result
             save_item(item, "pass.json")
             delete_item_file("current_item")

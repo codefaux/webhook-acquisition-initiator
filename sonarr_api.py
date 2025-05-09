@@ -3,6 +3,8 @@
 import os
 import requests
 
+import logger as _log
+
 # Load configuration from environment variables
 SONARR_URL = os.getenv("SONARR_URL")
 API_KEY = os.getenv("SONARR_API")
@@ -29,13 +31,13 @@ def validate_sonarr_config() -> bool:
     try:
         response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
-            print("Sonarr configuration is valid.")
+            _log.msg("Sonarr configuration is valid.")
             return True
         else:
-            print(f"Unexpected response status: {response.status_code}. Check URL and API key.")
+            _log.msg(f"Unexpected response status: {response.status_code}. Check URL and API key.")
             return False
     except requests.exceptions.RequestException as e:
-        print(f"Failed to connect to Sonarr: {e}")
+        _log.msg(f"Failed to connect to Sonarr: {e}")
         return False
 
 def get_all_series():
@@ -95,7 +97,7 @@ def get_episode_data_for_shows(show_title, show_ids):
         try:
             episodes = get_episodes(show_id)
         except Exception as e:
-            print(f"Error fetching episodes for '{show_id}': {e}")
+            _log.msg(f"Error fetching episodes for '{show_id}':\n\t{e}")
             continue
 
         for ep in episodes:

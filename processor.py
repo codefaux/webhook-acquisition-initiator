@@ -4,10 +4,10 @@
 import os
 import json
 import re
+
 from queue_manager import dequeue
 
 DATA_DIR = os.getenv("DATA_DIR")
-
 
 def dequeue_item(item: dict):
     return dequeue(item)

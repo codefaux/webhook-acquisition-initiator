@@ -120,6 +120,7 @@ def match_title_to_sonarr_episode(main_title: str, airdate: str, sonarr_data: Li
         cleaned_entry = entry.copy()
         cleaned_entry["series"] = clean_text(entry.get("series", ""))
         cleaned_entry["title"] = clean_text(entry.get("title", ""))
+        cleaned_entry["orig_title"] = entry.get("title", "")
         cleaned_data.append(cleaned_entry)
 
     token_freq = build_token_frequencies(cleaned_data)
@@ -155,6 +156,7 @@ def match_title_to_sonarr_episode(main_title: str, airdate: str, sonarr_data: Li
         "season": best_match["season"] if best_match else None,
         "episode": best_match["episode"] if best_match else None,
         "episode_title": best_match["title"] if best_match else None,
+        "episode_orig_title": best_match["orig_title"] if best_match else None,
         "score": best_score,
         "reason": best_reason
     }

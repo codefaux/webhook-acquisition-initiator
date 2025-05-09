@@ -1,15 +1,7 @@
 import os
-import sys
 import subprocess
 
-
-# ANSI color codes
-ANSI_BLUE = '\033[94m'
-ANSI_YELLOW = '\033[93m'
-ANSI_GREEN = '\033[92m'
-ANSI_RED = '\033[91m'
-ANSI_GREY = '\033[90m'
-ANSI_RESET = '\033[0m'
+import logger as _log
 
 DATA_DIR = os.getenv("DATA_DIR")
 netrc_file = os.path.join(DATA_DIR, "netrc")
@@ -41,17 +33,17 @@ def download_video(video_url, target_folder):
     if using_netrc:
         cmd[1:1] = ["--netrc", "--netrc-location", netrc_file]
 
-    print(f"{ANSI_GREEN}Starting download of '{video_url}' - {ANSI_YELLOW}netrc {ANSI_GREEN if using_netrc else ANSI_RED}{using_netrc}, {ANSI_YELLOW}yt-dlp.conf {ANSI_GREEN if using_ytdlpconf else ANSI_RED}{using_ytdlpconf}{ANSI_RESET}")
+    _log.msg(f"{_log._GREEN}Starting download of '{video_url}' - {_log._YELLOW}netrc {_log._GREEN if using_netrc else _log._RED}{using_netrc}, {_log._YELLOW}yt-dlp.conf {_log._GREEN if using_ytdlpconf else _log._RED}{using_ytdlpconf}{_log._RESET}")
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
-        print(f"{ANSI_RED}yt-dlp error during download:{ANSI_RESET} {result.stderr.strip()}")
+        _log.msg(f"{_log._RED}yt-dlp error during download:{_log._RESET} {result.stderr.strip()}")
         return None
 
     output = result.stdout.strip()
     if not output or not os.path.isfile(output):
-        print(f"{ANSI_RED}Download failed or file not found:{ANSI_RESET} {output}")
+        _log.msg(f"{_log._RED}Download failed or file not found:{_log._RESET} {output}")
         return None
 
     return output

@@ -5,6 +5,7 @@ import threading
 import signal
 import os
 
+import logger as _log
 from server import fastapi
 from queue_manager import process_queue, load_queue
 from sonarr_api import validate_sonarr_config
@@ -14,7 +15,7 @@ DATA_DIR = os.getenv("DATA_DIR")
 stop_event = threading.Event()
 
 def handle_exit_signal(signum, frame):
-    print(f"\n[Main] Caught signal {signum}, shutting down gracefully...")
+    _log.msg(f"\nCaught signal {signum}, shutting down gracefully...")
     stop_event.set()
 
 def start_background_processor():
@@ -44,4 +45,4 @@ if __name__ == "__main__":
         processor_thread.join()
         from queue_manager import save_queue
         save_queue()
-        print("[Main] Shutdown complete.")
+        _log.msg("Shutdown complete.")
