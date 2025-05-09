@@ -107,8 +107,25 @@ def tag_filename(file_filepath):
 
     file_width = file_data['width']
     file_height = file_data['height']
-    file_lang = pycountry.languages.get(alpha_2=file_data['language'])
 
+    file_lang = file_data.get('language', None)
+    if not file_lang:
+        # import langid
+        from langid.langid import LanguageIdentifier, model
+        identifier = LanguageIdentifier.from_modelstring(model, norm_probs=True)
+        classify_string = file_data.get('description', None)
+        if not classify_string:
+            classify_string = file_data.get('title', None)
+
+        lang_id, lang_prob = identifier.classify(classify_string)
+
+        print(f"lang_id: {lang_id}\tlang_condifence: {lang_prob}")
+        file_lang = pycountry.languages.get(alpha_2=lang_id)
+    else:
+        file_lang = pycountry.languages.get(alpha_2=file_lang)
+
+    
+    
     file_tags = f".WEB-DL.{file_width}x{file_height}.{file_lang.alpha_3}-cfwai"
 
     file_path = Path(file_filepath)

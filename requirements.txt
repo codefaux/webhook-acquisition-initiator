@@ -8,3 +8,4 @@ requests
 prettytable
 pathlib
 yt-dlp
+langid
