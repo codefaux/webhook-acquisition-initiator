@@ -174,7 +174,7 @@ def process_queue(stop_event: threading.Event):
                     _log.msg(f"Series match score not high enough. ({title_result['score']} < 70)  Aborting.")
                     item['title_result'] = title_result
                     save_item(item, "series_score.json")
-                    delete_item_file("current_item")
+                    delete_item_file("current.json")
                     item = None
                     continue # no error condition
 
@@ -183,7 +183,7 @@ def process_queue(stop_event: threading.Event):
                     _log.msg(f"Series NOT monitored. Aborting.")
                     item['title_result'] = title_result
                     save_item(item, "unmonitored_series.json")
-                    delete_item_file("current_item")
+                    delete_item_file("current.json")
                     item = None
                     continue # no error condition
 
@@ -195,7 +195,7 @@ def process_queue(stop_event: threading.Event):
             if episode_result['score'] < 70:
                     _log.msg(f"Episode match score not high enough. ({episode_result['score']} < 70)  Aborting.")
                     save_item(item, "episode_score.json")
-                    delete_item_file("current_item")
+                    delete_item_file("current.json")
                     item = None
                     continue # no error condition
 
@@ -203,7 +203,7 @@ def process_queue(stop_event: threading.Event):
                 if not is_monitored_episode(title_result.get('matched_id'), episode_result.get('season'), episode_result.get('episode')):
                     _log.msg(f"Episode NOT monitored. Aborting.")
                     save_item(item, "unmonitored_episode.json")
-                    delete_item_file("current_item")
+                    delete_item_file("current.json")
                     item = None
                     continue # no error condition
 
@@ -211,7 +211,7 @@ def process_queue(stop_event: threading.Event):
                 if is_episode_file(title_result.get('matched_id'), episode_result.get('season'), episode_result.get('episode')):
                     _log.msg(f"Episode has file. Aborting.")
                     save_item(item, "episode_has_file.json")
-                    delete_item_file("current_item")
+                    delete_item_file("current.json")
                     item = None
                     continue # no error condition
 
@@ -221,7 +221,7 @@ def process_queue(stop_event: threading.Event):
             if not download_filename:
                 _log.msg(f"No file. Aborting thread. (API will still function.)")
                 save_item(item, "download_fail.json")
-                delete_item_file("current_item")
+                delete_item_file("current.json")
                 item = None
                 sys.exit(1) # error condition
 
@@ -240,7 +240,7 @@ def process_queue(stop_event: threading.Event):
             _log.msg(f"Sonarr Import result: {import_result['status']}")
             item['import_result'] = import_result
             save_item(item, "pass.json")
-            delete_item_file("current_item")
+            delete_item_file("current.json")
             item = None
 
             with queue_condition:
