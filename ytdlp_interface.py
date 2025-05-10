@@ -88,4 +88,6 @@ def download_progress_hook(status):
             last_print_time = current_time
             last_print_percent = int(percent/25) * 25
     elif status['status'] == 'finished':
+        last_print_time = 0
+        last_print_percent = 0
         _log.msg(f"{_log._GREEN}Download complete. Moving file...{_log._RESET}")
