@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+nicegui
+pycountry
+rapidfuzz
+python-dateutil
+requests
+pathlib
+yt-dlp
+langid
