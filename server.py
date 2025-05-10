@@ -55,7 +55,7 @@ def main_page():
                     if result:
                         for item in result:
                             ui.separator()
-                            with ui.expansion(f"{item.get('creator','')} :: {item['title']}", icon='expand_more'):
+                            with ui.expansion(f"{item.get('creator','')} :: {item.get('title', '')}", icon='expand_more'):
                                 ui.json_editor({'content': {'json': item}})
                                 with ui.button_group():
                                     ui.button('Reprocess').on('click', lambda e, f=datafile, i=str(item): (handle_reprocess(f, i), refresh_tab(f)))
