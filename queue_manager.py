@@ -28,6 +28,7 @@ HONOR_UNMON_SERIES = os.getenv("HONOR_UNMON_SERIES", 1) == 1
 HONOR_UNMON_EPS = os.getenv("HONOR_UNMON_EPS", 1) == 1
 OVERWRITE_EPS = os.getenv("OVERWRITE_EPS", 0) == 1
 QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
+FLIP_FLOP_QUEUE = os.getenv("FLIP_FLOP_QUEUE", 0) == 1
 
 def load_queue():
     if os.path.exists(QUEUE_FILE):
@@ -159,6 +160,9 @@ def process_queue(stop_event: threading.Event):
 
             if queue and not item:
                 item = queue.pop(0)
+                if FLIP_FLOP_QUEUE:
+                    _log.msg("Inverting queue")
+                    queue.reverse()
                 save_item(item, "current.json", True)
                 save_item(item, "all_processed.json")
                 save_queue()
