@@ -24,11 +24,11 @@ queue = []
 SONARR_IN_PATH = os.getenv("SONARR_IN_PATH", None)
 WAI_OUT_TEMP = os.getenv("WAI_OUT_TEMP", None)
 WAI_OUT_PATH = os.getenv("WAI_OUT_PATH", "./output")
-HONOR_UNMON_SERIES = os.getenv("HONOR_UNMON_SERIES", 1) == 1
-HONOR_UNMON_EPS = os.getenv("HONOR_UNMON_EPS", 1) == 1
-OVERWRITE_EPS = os.getenv("OVERWRITE_EPS", 0) == 1
+HONOR_UNMON_SERIES = int(os.getenv("HONOR_UNMON_SERIES", 1)) == 1
+HONOR_UNMON_EPS = int(os.getenv("HONOR_UNMON_EPS", 1)) == 1
+OVERWRITE_EPS = int(os.getenv("OVERWRITE_EPS", 0)) == 1
 QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
-FLIP_FLOP_QUEUE = os.getenv("FLIP_FLOP_QUEUE", 0) == 1
+FLIP_FLOP_QUEUE = int(os.getenv("FLIP_FLOP_QUEUE", 0)) == 1
 
 def load_queue():
     if os.path.exists(QUEUE_FILE):
