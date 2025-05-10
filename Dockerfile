@@ -18,7 +18,7 @@ COPY requirements.txt main.py matcher.py processor.py queue_manager.py server.py
 
 # Install Python packages
 WORKDIR /app
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt --prefer-binary
 
 # Create mount point for data
 VOLUME ["/data"]
