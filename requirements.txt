@@ -5,7 +5,6 @@ pycountry
 rapidfuzz
 python-dateutil
 requests
-prettytable
 pathlib
 yt-dlp
 langid
