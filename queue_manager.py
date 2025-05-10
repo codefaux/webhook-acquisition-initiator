@@ -154,6 +154,7 @@ def process_queue(stop_event: threading.Event):
     while not stop_event.is_set():
         with queue_condition:
             while not item and not queue and not stop_event.is_set():
+                _log.msg(f"No current item. No queue. Sleeping for at most {QUEUE_INTERVAL} min.")
                 queue_condition.wait(timeout=QUEUE_INTERVAL*60)
 
             if queue and not item:
@@ -243,5 +244,6 @@ def process_queue(stop_event: threading.Event):
             delete_item_file("current.json")
             item = None
 
+            _log.msg(f"Queue thread sleeping for {QUEUE_INTERVAL} min.")
             with queue_condition:
                 queue_condition.wait(timeout=QUEUE_INTERVAL * 60)
