@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import yt_dlp
+import yt_dlp.options
 import logger as _log
 
 DATA_DIR = os.getenv("DATA_DIR")
@@ -38,13 +39,37 @@ def ensure_dir(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
+create_parser = yt_dlp.options.create_parser
+
+def parse_patched_options(opts):
+    patched_parser = create_parser()
+    patched_parser.defaults.update({
+        'ignoreerrors': False,
+    })
+    yt_dlp.options.create_parser = lambda: patched_parser
+    try:
+        return yt_dlp.parse_options(opts)
+    finally:
+        yt_dlp.options.create_parser = create_parser
+
+default_ytdlp_opts = parse_patched_options([]).ydl_opts
+
+def cli_to_api(opts, cli_defaults=False):
+    opts = (yt_dlp.parse_options if cli_defaults else parse_patched_options)(opts).ydl_opts
+
+    diff = {k: v for k, v in opts.items() if default_ytdlp_opts[k] != v}
+    if 'postprocessors' in diff:
+        diff['postprocessors'] = [pp for pp in diff['postprocessors']
+                                  if pp not in default_ytdlp_opts['postprocessors']]
+    return diff
+
 def download_video(video_url, target_folder):
     """Download a video using the yt_dlp Python API into the target folder.
     Returns the destination file path or None on failure.
     """
     ensure_dir(target_folder)
+
     ydl_opts = {
-        'outtmpl': os.path.join(target_folder, '%(title)s.%(ext)s'),
         'progress_hooks': [download_progress_hook],
         'noplaylist': True,
         'no_warnings': True,
@@ -56,10 +81,12 @@ def download_video(video_url, target_folder):
     }
 
     if using_ytdlpconf:
-        ydl_opts['config_location'] = ytdlpconf_file
+        ydl_opts.update(cli_to_api(["--config-locations",f"{DATA_DIR}"]))
     if using_netrc:
         ydl_opts['usenetrc'] = True
         ydl_opts['netrc_location'] = netrc_file
+
+    ydl_opts['outtmpl'] = os.path.join(target_folder, '%(title)s.%(ext)s')
 
     _log.msg(f"{_log._GREEN}Starting download of '{video_url}' - {_log._YELLOW}netrc {_log._GREEN if using_netrc else _log._RED}{using_netrc}, {_log._YELLOW}yt-dlp.conf {_log._GREEN if using_ytdlpconf else _log._RED}{using_ytdlpconf}{_log._RESET}")
 
@@ -82,14 +109,14 @@ def download_progress_hook(status):
         current_time = time.time()
         percent = status.get('_percent', 0)
         if (current_time - last_print_time >= 60) or (percent - last_print_percent >= 25 ):
-            speed = status.get('speed', 0)
-            eta = status.get('eta', 0)
-            _log.msg(f"{_log._YELLOW}Downloading: {percent:.2f}% @ {format_bytes(speed)}/s, ETA: {eta}s{_log._RESET}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}")
+            _log.msg(f"{_log._YELLOW}Downloading: {percent:.2f}% of {format_bytes(status.get('total_bytes_estimate', 0) or 0)} @ {format_bytes(status.get('speed', 0) or 0)}/s, ETA: {status.get('eta', 0) or 0}s{_log._RESET}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}")
             last_print_time = current_time
             last_print_percent = int(percent/25) * 25
     elif status['status'] == 'finished':
         last_print_time = 0
         last_print_percent = 0
-        _log.msg(f"{_log._GREEN}Download complete. Finalizing file...{_log._RESET}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}")
+        _log.msg(f"{_log._GREEN}Download complete. {format_bytes(status.get('total_bytes', 0) or 0)} in {status.get('elapsed', 0) or 0}s ({format_bytes(status.get('speed', 0) or 0)}/s). Finalizing file...{_log._RESET}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}")
+    elif status['status'] == 'error':
+        _log.msg(f"status: {_log._RED}error{_log._RESET}\n\t{_log._YELLOW}{status}{_log._RESET}")
     # else:
     #     _log.msg(f"status: {status}")
