@@ -59,7 +59,7 @@ def is_monitored_series(series_id):
     response = requests.get(f"{SONARR_URL.rstrip('/')}/api/v3/series", headers=HEADERS)
     response.raise_for_status()
     series_list = response.json()
-    return any(s['id'] == series_id and s.get('monitored', False) for s in series_list)
+    return any(s['id'] == series_id and s.get('monitored', True) for s in series_list)
 
 
 def search_local_series(query):
@@ -157,7 +157,7 @@ def get_sonarr_episode(series_id, season_number, episode_number):
 
 def is_monitored_episode(series_id, season_number, episode_number):
     sonarr_episode = get_sonarr_episode(series_id, season_number, episode_number)
-    return sonarr_episode.get('Monitored', False)
+    return sonarr_episode.get('monitored', True)
 
 def is_episode_file(series_id, season_number, episode_number):
     sonarr_episode = get_sonarr_episode(series_id, season_number, episode_number)
