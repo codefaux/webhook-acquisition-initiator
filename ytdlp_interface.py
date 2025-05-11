@@ -116,7 +116,7 @@ def download_progress_hook(status):
     elif status['status'] == 'finished':
         last_print_time = 0
         last_print_percent = 0
-        _log.msg(f"{_log._GREEN}Download complete. {format_bytes(status.get('total_bytes', 0) or 0)} in {status.get('elapsed', 0) or 0}s ({format_bytes(status.get('speed', 0) or 0)}/s). Finalizing file...{_log._RESET}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}")
+        _log.msg(f"{_log._GREEN}Download complete. {format_bytes(status.get('total_bytes', 0) or 0)} in {int(status.get('elapsed', 0)+0.4999) or 0}s ({format_bytes(status.get('speed', 0) or 0)}/s). Finalizing file...{_log._RESET}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}")
     elif status['status'] == 'error':
         _log.msg(f"status: {_log._RED}error{_log._RESET}\n\t{_log._YELLOW}{status}{_log._RESET}")
     # else:
