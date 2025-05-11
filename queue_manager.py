@@ -95,6 +95,13 @@ def enqueue(item: dict):
         save_queue()
         queue_condition.notify()
 
+def round_to_nearest_hd(width, height):
+    resolutions = [ (426, 240), (640, 360), (854, 480), (1280, 720), (1920, 1080), (2560, 1440), (3840, 2160), (7680, 4320) ]
+    for w, h in resolutions:
+        if width <= w and height <= h:
+            return (w, h)
+    return (7680, 4320)
+
 def tag_filename(file_filepath):
     data_name = str(Path(file_filepath).with_suffix(".info.json"))
     file_data = {}
@@ -107,8 +114,7 @@ def tag_filename(file_filepath):
                 _log.msg("Failed to decode file JSON; skipping retag.")
                 return file_filepath
 
-    file_width = file_data['width']
-    file_height = file_data['height']
+    file_width, file_height = round_to_nearest_hd(file_data['width'], file_data['height'])
 
     file_lang = file_data.get('language', None)
     if not file_lang:
@@ -125,9 +131,7 @@ def tag_filename(file_filepath):
         file_lang = pycountry.languages.get(alpha_2=lang_id)
     else:
         file_lang = pycountry.languages.get(alpha_2=file_lang)
-
-    
-    
+   
     file_tags = f".WEB-DL.{file_width}x{file_height}.{file_lang.alpha_3}-cfwai"
 
     file_path = Path(file_filepath)
