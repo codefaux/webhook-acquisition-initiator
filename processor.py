@@ -18,7 +18,7 @@ def process_message(raw_text: str) -> dict:
 
     match = pattern.match(raw_text.strip())
     if not match:
-        return {}  # or raise an error / return None depending on context
+        return {}
 
     creator, datecode, title, url = match.groups()
 
