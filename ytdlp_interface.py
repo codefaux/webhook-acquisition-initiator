@@ -109,7 +109,8 @@ def download_progress_hook(status):
         current_time = time.time()
         percent = status.get('_percent', 0)
         if (current_time - last_print_time >= 60) or (percent - last_print_percent >= 25 ):
-            _log.msg(f"{_log._YELLOW}Downloading: {percent:.2f}% of {format_bytes(status.get('total_bytes_estimate', 0) or 0)} @ {format_bytes(status.get('speed', 0) or 0)}/s, ETA: {status.get('eta', 0) or 0}s{_log._RESET}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}")
+            midstr =  f" @ {format_bytes(status.get('speed', 0) or 0)}/s, ETA: {status.get('eta', 0) or 0}s{_log._RESET}" if last_print_time > 5 else ""
+            _log.msg(f"{_log._YELLOW}Downloading: {percent:.2f}% of {format_bytes(status.get('total_bytes_estimate', None) or status.get('total_bytes', None) or 0)}{midstr}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}")
             last_print_time = current_time
             last_print_percent = int(percent/25) * 25
     elif status['status'] == 'finished':
