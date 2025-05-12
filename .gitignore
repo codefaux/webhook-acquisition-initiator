@@ -2,6 +2,6 @@ __pycache__/**
 output/**
 data/**
 temp/**
-.vscode/launch.json
+.vscode/**
 docker-compose.yml
 .nicegui/**
