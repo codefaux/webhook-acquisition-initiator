@@ -3,6 +3,7 @@
 import os
 import signal
 import threading
+import time
 
 import logger as _log
 import uvicorn
@@ -31,7 +32,17 @@ def start_background_processor():
 if __name__ == "__main__":
     os.makedirs(DATA_DIR, exist_ok=True)
 
-    if not validate_sonarr_config():
+    retries = 0
+    while retries < 5:
+        if validate_sonarr_config():
+            retries = 0
+            break
+        else:
+            retries += 1
+            _log.msg("Error: Sonarr connection failed. Retrying in 10 sec..")
+            time.sleep(10)
+
+    if retries:
         exit("Sonarr connection failed. Please check your configuration.")
 
     load_queue()

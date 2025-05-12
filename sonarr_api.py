@@ -32,7 +32,7 @@ def validate_sonarr_config() -> bool:
     headers = {"X-Api-Key": API_KEY}
 
     try:
-        response = requests.get(url, headers=headers, timeout=5)
+        response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
             _log.msg("Sonarr configuration is valid.")
             return True
