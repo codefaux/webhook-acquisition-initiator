@@ -62,6 +62,7 @@ def load_item(file: str, remove_after: bool = False):
                 _log.msg(f"Failed to decode JSON '{file_path}' ; returning None.")
         if remove_after:
             os.remove(file_path)
+
         return item
 
 
@@ -120,6 +121,7 @@ def round_to_nearest_hd(width, height):
     for w, h in resolutions:
         if width <= w and height <= h:
             return (w, h)
+
     return (7680, 4320)
 
 
@@ -133,6 +135,7 @@ def tag_filename(file_filepath):
                 file_data = json.load(f)
             except json.JSONDecodeError:
                 _log.msg("Failed to decode file JSON; skipping retag.")
+
                 return file_filepath
 
     file_width, file_height = round_to_nearest_hd(
@@ -174,7 +177,9 @@ def dequeue(item: dict):
             if q_item == item:
                 del queue[i]
                 save_queue()
+
                 return {"status": "removed"}
+
         return {"error": "Item not found in queue"}
 
 
@@ -184,11 +189,168 @@ def close_item(item, message, filename):
     _log.msg(message)
     save_item(item, filename)
     delete_item_file("current.json")
+
     return None
 
 
-def process_queue(stop_event: threading.Event):
+def match_and_check(item):
+    _log.msg(
+        f"Processing item:\n"
+        f"\t{_log._GREEN}creator:{_log._RESET} {item.get('creator', '')}"
+        f"\t{_log._GREEN}title:{_log._RESET} {item.get('title', '')}\n"
+        f"\t{_log._GREEN}datecode:{_log._RESET} {item.get('datecode', '')}"
+        f"\t{_log._GREEN}url:{_log._RESET} {item.get('url', '')}"
+    )
+
     show_titles = get_all_series()
+
+    main_title = f"{item.get('creator', '')} :: {item.get('title', '')}"
+    title_result = match_title_to_sonarr_show(main_title, show_titles)
+    item["title_result"] = title_result
+    _log.msg(
+        f"Match result: title -> show\n"
+        f"\t{_log._YELLOW}input:{_log._RESET} '{main_title}'\n"
+        f"\t{_log._BLUE}score:{_log._RESET} {title_result.get('score')}"
+        f"\t{_log._GREEN}matched show:{_log._RESET} '{title_result.get('matched_show')}'"
+        f" {_log._YELLOW}(id:{title_result.get('matched_id')}){_log._RESET}"
+    )
+
+    if title_result["score"] < 70:
+        return close_item(
+            item,
+            f"Series match score not high enough. ({title_result['score']} < 70)  Aborting.",
+            "series_score.json",
+        )
+
+    if HONOR_UNMON_SERIES:
+        if not is_monitored_series(title_result["matched_id"]):
+            return close_item(
+                item,
+                "Series NOT monitored. Aborting.",
+                "unmonitored_series.json",
+            )
+
+    show_data = get_episode_data_for_shows(
+        title_result.get("matched_show"), title_result.get("matched_id")
+    )
+    episode_result = match_title_to_sonarr_episode(
+        main_title, item.get("datecode", -1), show_data
+    )
+    item["episode_result"] = episode_result
+    _log.msg(
+        f"Match result: title -> episode:\n"
+        f"\t{_log._YELLOW}input:{_log._RESET} '{main_title}'\n"
+        f"\t{_log._BLUE}score:{_log._RESET} {episode_result.get('score', 0)}"
+        f"\t{_log._GREEN}season:{_log._RESET} {episode_result.get('season', 0)}"
+        f"\t{_log._GREEN}episode:{_log._RESET} {episode_result.get('episode')}\n"
+        f"{_log._GREEN}title:{_log._RESET} '{episode_result.get('episode_orig_title', '')}'\n"
+        f"\t{_log._GREEN}reasons:{_log._RESET} {episode_result.get('reason', '')}"
+    )
+
+    if episode_result["score"] < 70:
+        return close_item(
+            item,
+            f"Episode match score not high enough. ({episode_result['score']} < 70)  Aborting.",
+            "episode_score.json",
+        )
+
+    if HONOR_UNMON_EPS:
+        if not is_monitored_episode(
+            title_result.get("matched_id"),
+            episode_result.get("season"),
+            episode_result.get("episode"),
+        ):
+            return close_item(
+                item,
+                "Episode NOT monitored. Aborting.",
+                "unmonitored_episode.json",
+            )
+
+    if not OVERWRITE_EPS:
+        if is_episode_file(
+            title_result.get("matched_id"),
+            episode_result.get("season"),
+            episode_result.get("episode"),
+        ):
+            return close_item(
+                item,
+                "Episode already has file. Aborting.",
+                "episode_has_file.json",
+            )
+
+    return item
+
+
+def download_item(item):
+    download_filename = download_video(item.get("url"), WAI_OUT_TEMP or WAI_OUT_PATH)
+    item["download_filename"] = download_filename
+
+    if not download_filename:
+        item = close_item(
+            item,
+            "No file at download location. Aborting thread. (API will still function.)",
+            "download_fail.json",
+        )
+        sys.exit(1)  # error condition
+
+    _log.msg(f"Download returned: {download_filename}")
+
+    return item
+
+
+def rename_and_move_item(item):
+    tag_filepath = tag_filename(item.get("download_filename"))
+    file_name = os.path.basename(tag_filepath)
+
+    if WAI_OUT_TEMP:  # NOT WORKING
+        shutil.copy(tag_filepath, os.path.abspath(WAI_OUT_PATH))
+        os.remove(tag_filepath)
+        _log.msg(f"Moved: {tag_filepath} \n\t-> To: {os.path.abspath(WAI_OUT_PATH)}")
+
+    item["file_name"] = file_name
+
+    return item
+
+
+def import_item(item):
+    import_result = import_downloaded_episode(
+        item["title_result"].get("matched_id"),
+        item["episode_result"].get("season"),
+        item["episode_result"].get("episode"),
+        item["file_name"],
+        SONARR_IN_PATH,
+    )
+
+    item["import_result"] = import_result
+
+    return item
+
+
+def process_item(item):
+    item = match_and_check(item)
+
+    if not item:
+        return False
+
+    if DEBUG_MODE:
+        breakpoint()
+
+    item = download_item(item)
+
+    item = rename_and_move_item(item)
+
+    item = import_item(item)
+
+    item = close_item(
+        item,
+        f"Item Sonarr Import result: {item.get("import_result").get('status')}",
+        "pass.json",
+    )
+
+    return True
+
+
+def process_queue(stop_event: threading.Event):
     item = load_item("current.json")
 
     while not stop_event.is_set():
@@ -209,135 +371,10 @@ def process_queue(stop_event: threading.Event):
                 save_queue()
 
         if item:
-            _log.msg(
-                f"Processing item:\n"
-                f"\t{_log._GREEN}creator:{_log._RESET} {item.get('creator', '')}"
-                f"\t{_log._GREEN}title:{_log._RESET} {item.get('title', '')}\n"
-                f"\t{_log._GREEN}datecode:{_log._RESET} {item.get('datecode', '')}"
-                f"\t{_log._GREEN}url:{_log._RESET} {item.get('url', '')}"
-            )
+            wait_before_loop = process_item(item)
 
-            main_title = f"{item.get('creator', '')} :: {item.get('title', '')}"
-            title_result = match_title_to_sonarr_show(main_title, show_titles)
-            item["title_result"] = title_result
-            _log.msg(
-                f"Match result: title -> show\n"
-                f"\t{_log._YELLOW}input:{_log._RESET} '{main_title}'\n"
-                f"\t{_log._BLUE}score:{_log._RESET} {title_result.get('score')}"
-                f"\t{_log._GREEN}matched show:{_log._RESET} '{title_result.get('matched_show')}'"
-                f" {_log._YELLOW}(id:{title_result.get('matched_id')}{_log._RESET})"
-            )
-
-            if title_result["score"] < 70:
-                item = close_item(
-                    item,
-                    f"Series match score not high enough. ({title_result['score']} < 70)  Aborting.",
-                    "series_score.json",
-                )
-                continue  # no error condition
-
-            if HONOR_UNMON_SERIES:
-                if not is_monitored_series(title_result["matched_id"]):
-                    item = close_item(
-                        item,
-                        "Series NOT monitored. Aborting.",
-                        "unmonitored_series.json",
-                    )
-                    continue  # no error condition
-
-            show_data = get_episode_data_for_shows(
-                title_result.get("matched_show"), title_result.get("matched_id")
-            )
-            episode_result = match_title_to_sonarr_episode(
-                main_title, item.get("datecode", -1), show_data
-            )
-            item["episode_result"] = episode_result
-            _log.msg(
-                f"Match result: title -> episode:\n"
-                f"\t{_log._YELLOW}input:{_log._RESET} '{main_title}'\n"
-                f"\t{_log._BLUE}score:{_log._RESET} {episode_result.get('score', 0)}"
-                f"\t{_log._GREEN}season:{_log._RESET} {episode_result.get('season', 0)}"
-                f"\t{_log._GREEN}episode:{_log._RESET} {episode_result.get('episode')}\n"
-                f"{_log._GREEN}title:{_log._RESET} '{episode_result.get('episode_orig_title', '')}'\n"
-                f"\t{_log._GREEN}reasons:{_log._RESET} {episode_result.get('reason', '')}"
-            )
-
-            if episode_result["score"] < 70:
-                item = close_item(
-                    item,
-                    f"Episode match score not high enough. ({episode_result['score']} < 70)  Aborting.",
-                    "episode_score.json",
-                )
-                continue  # no error condition
-
-            if HONOR_UNMON_EPS:
-                if not is_monitored_episode(
-                    title_result.get("matched_id"),
-                    episode_result.get("season"),
-                    episode_result.get("episode"),
-                ):
-                    item = close_item(
-                        item,
-                        "Episode NOT monitored. Aborting.",
-                        "unmonitored_episode.json",
-                    )
-                    continue  # no error condition
-
-            if not OVERWRITE_EPS:
-                if is_episode_file(
-                    title_result.get("matched_id"),
-                    episode_result.get("season"),
-                    episode_result.get("episode"),
-                ):
-                    item = close_item(
-                        item,
-                        "Episode already has file. Aborting.",
-                        "episode_has_file.json",
-                    )
-                    continue  # no error condition
-
-            if DEBUG_MODE:
-                breakpoint()
-
-            download_filename = download_video(
-                item.get("url"), WAI_OUT_TEMP or WAI_OUT_PATH
-            )
-            item["download_filename"] = download_filename
-
-            if not download_filename:
-                item = close_item(
-                    item,
-                    "No file at download location. Aborting thread. (API will still function.)",
-                    "download_fail.json",
-                )
-                sys.exit(1)  # error condition
-
-            _log.msg(f"Download returned: {download_filename}")
-
-            tag_filepath = tag_filename(download_filename)
-            file_name = os.path.basename(tag_filepath)
-
-            if WAI_OUT_TEMP:  # NOT WORKING
-                shutil.copy(tag_filepath, os.path.abspath(WAI_OUT_PATH))
-                os.remove(tag_filepath)
-                _log.msg(
-                    f"Moved: {tag_filepath} \n\t-> To: {os.path.abspath(WAI_OUT_PATH)}"
-                )
-
-            import_result = import_downloaded_episode(
-                title_result.get("matched_id"),
-                episode_result.get("season"),
-                episode_result.get("episode"),
-                file_name,
-                SONARR_IN_PATH,
-            )
-
-            item["import_result"] = import_result
-            item = close_item(
-                item,
-                f"Item Sonarr Import result: {import_result['status']}",
-                "pass.json",
-            )
+            if not wait_before_loop:
+                continue
 
             _log.msg(f"Queue thread sleeping for {QUEUE_INTERVAL} min.")
             with queue_condition:
