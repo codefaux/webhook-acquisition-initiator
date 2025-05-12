@@ -373,6 +373,8 @@ def process_queue(stop_event: threading.Event):
         if item:
             wait_before_loop = process_item(item)
 
+            item = None
+
             if not wait_before_loop:
                 continue
 
