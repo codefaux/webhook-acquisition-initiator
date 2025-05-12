@@ -127,46 +127,61 @@ def download_video(video_url, target_folder):
         return None
 
 
-def download_progress_hook(status):
+def handle_downloading(status):
     global last_print_time, last_print_percent
+    current_time = time.time()
+    percent = status.get("_percent", 0)
+    time_diff = current_time - last_print_time
+    pct_diff = percent - last_print_percent
 
-    if status["status"] == "downloading":
-        current_time = time.time()
-        percent = status.get("_percent", 0)
-        time_diff = current_time - last_print_time
-        pct_diff = percent - last_print_percent
-        if (time_diff >= 60) or (pct_diff >= 25):
-            midstr = (
-                f" @ {format_bytes(status.get('speed', 0) or 0)}/s, ETA: {status.get('eta', 0) or 0}s{_log._RESET}"
-                if last_print_time > 5
-                else ""
-            )
-            use_total = (
-                status.get("total_bytes_estimate", None)
-                or status.get("total_bytes", None)
-                or 0
-            )
-            _log.msg(
-                f"{_log._YELLOW}Downloading: {percent:.2f}% of {format_bytes(use_total)}"
-                f"{midstr}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}"
-            )
-            last_print_time = current_time
-            last_print_percent = int(percent / 25) * 25
-    elif status["status"] == "finished":
-        last_print_time = 0
-        last_print_percent = 0
-        _log.msg(
-            f"{_log._GREEN}Download complete. "
-            f"{format_bytes(status.get('total_bytes', 0) or 0)} "
-            f"in {int(status.get('elapsed', 0)+0.4999) or 0}s "
-            f"({format_bytes(status.get('speed', 0) or 0)}/s). "
-            f"Finalizing file...{_log._RESET}\n"
-            f"{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}"
+    if (time_diff >= 60) or (pct_diff >= 25):
+        midstr = ""
+        if last_print_time > 5:
+            speed = format_bytes(status.get("speed", 0) or 0)
+            eta = status.get("eta", 0) or 0
+            midstr = f" @ {speed}/s, ETA: {eta}s{_log._RESET}"
+
+        total_bytes = (
+            status.get("total_bytes_estimate") or status.get("total_bytes") or 0
         )
-    elif status["status"] == "error":
         _log.msg(
-            f"status: {_log._RED}error{_log._RESET}\n"
-            f"\t{_log._YELLOW}{status}{_log._RESET}"
+            f"{_log._YELLOW}Downloading: {percent:.2f}% of {format_bytes(total_bytes)}"
+            f"{midstr}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}"
         )
-    # else:
-    #     _log.msg(f"status: {status}")
+
+        # Update global state
+        last_print_time = current_time
+        last_print_percent = int(percent / 25) * 25
+
+
+def handle_finished(status):
+    global last_print_time, last_print_percent
+    last_print_time = 0
+    last_print_percent = 0
+    total_bytes = format_bytes(status.get("total_bytes", 0) or 0)
+    elapsed = int(status.get("elapsed", 0) + 0.4999) or 0
+    speed = format_bytes(status.get("speed", 0) or 0)
+
+    _log.msg(
+        f"{_log._GREEN}Download complete. {total_bytes} in {elapsed}s ({speed}/s). "
+        f"Finalizing file...{_log._RESET}\n"
+        f"{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}"
+    )
+
+
+def handle_error(status):
+    _log.msg(
+        f"status: {_log._RED}error{_log._RESET}\n"
+        f"\t{_log._YELLOW}{status}{_log._RESET}"
+    )
+
+
+def download_progress_hook(status):
+    handlers = {
+        "downloading": handle_downloading,
+        "finished": handle_finished,
+        "error": handle_error,
+    }
+    handler = handlers.get(status["status"])
+    if handler:
+        handler(status)
