@@ -197,7 +197,7 @@ def match_title_to_sonarr_show(main_title: str, sonarr_shows) -> Dict:
 
         # Priority boost if show name appears verbatim
         verbatim_match = processed_show in fuzzutils.default_process(main_title)
-        verbatim_bonus = 40 if verbatim_match else 0
+        verbatim_bonus = 35 + len(show_title) if verbatim_match else 0
 
         # Token similarity and keyword overlap
         token_score = fuzz.token_set_ratio(main_title, show_title)
