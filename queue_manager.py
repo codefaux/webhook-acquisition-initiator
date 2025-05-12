@@ -31,6 +31,7 @@ HONOR_UNMON_EPS = int(os.getenv("HONOR_UNMON_EPS", 1)) == 1
 OVERWRITE_EPS = int(os.getenv("OVERWRITE_EPS", 0)) == 1
 QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
 FLIP_FLOP_QUEUE = int(os.getenv("FLIP_FLOP_QUEUE", 0)) == 1
+DEBUG_MODE = os.getenv("DEBUG_MODE", 0) != 0
 
 
 def load_queue():
@@ -294,6 +295,9 @@ def process_queue(stop_event: threading.Event):
                         "episode_has_file.json",
                     )
                     continue  # no error condition
+
+            if DEBUG_MODE:
+                breakpoint()
 
             download_filename = download_video(
                 item.get("url"), WAI_OUT_TEMP or WAI_OUT_PATH
