@@ -1,20 +1,22 @@
 # processor.py
 # stands between server and files/data
 
-import os
 import json
+import os
 import re
 
 from queue_manager import dequeue
 
 DATA_DIR = os.getenv("DATA_DIR")
 
+
 def dequeue_item(item: dict):
     return dequeue(item)
 
+
 def process_message(raw_text: str) -> dict:
     # Pattern to match the format: CREATOR :: DATECODE :: TITLE\n\nURL
-    pattern = re.compile(r'^(.*?)\s*::\s*(\d{8})\s*::\s*(.*?)\s*\n+(\S+)', re.DOTALL)
+    pattern = re.compile(r"^(.*?)\s*::\s*(\d{8})\s*::\s*(.*?)\s*\n+(\S+)", re.DOTALL)
 
     match = pattern.match(raw_text.strip())
     if not match:
@@ -26,45 +28,47 @@ def process_message(raw_text: str) -> dict:
         "creator": creator.strip(),
         "title": title.strip(),
         "datecode": datecode.strip(),
-        "url": url.strip()
+        "url": url.strip(),
     }
 
-def get_json_item(from_file: str, name: str = None, value: str = None) -> dict:
-    from_file = from_file.lower()
+
+def get_json_item(from_file: str) -> dict:
     if not from_file.endswith(".json"):
         from_file += ".json"
 
-    file_path = os.path.join(DATA_DIR, from_file)
+    file_path = os.path.join(DATA_DIR, from_file.lower())
 
-    if not os.path.exists(file_path):
+    if not os.path.isfile(file_path):
         return {"error": "File not found"}
 
-    with open(file_path, "r", encoding="utf-8") as f:
-        try:
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        except json.JSONDecodeError:
-            return {"error": "Invalid JSON format"}
+            if not isinstance(data, list):
+                return {"error": "Expected a list of JSON objects"}
+    except json.JSONDecodeError:
+        return {"error": "Invalid JSON format"}
 
-    if not isinstance(data, list):
-        return {"error": "Expected a list of JSON objects"}
+    return data
 
+
+def get_json_item_filtered(from_file: str, name: str = None, value: str = None) -> dict:
     if name is None and value is None:
-        return data
+        return get_json_item(from_file)
 
-    filtered = []
-    for entry in data:
-        if isinstance(entry, dict):
-            if name and value:
-                if str(entry.get(name)) == value:
-                    filtered.append(entry)
-            elif name:
-                if name in entry:
-                    filtered.append(entry)
-            elif value:
-                if value in map(str, entry.values()):
-                    filtered.append(entry)
+    filtered = [
+        entry
+        for entry in get_json_item(from_file)
+        if isinstance(entry, dict)
+        and (
+            (name and value and str(entry.get(name)) == value)
+            or (name and name in entry)
+            or (value and value in map(str, entry.values()))
+        )
+    ]
 
     return filtered
+
 
 def add_json_item(to_file: str, item: dict) -> dict:
     to_file = to_file.lower()
@@ -93,6 +97,7 @@ def add_json_item(to_file: str, item: dict) -> dict:
         json.dump(data, f, indent=2)
 
     return {"added": item}
+
 
 def remove_json_item(from_file: str, item: dict) -> dict:
     from_file = from_file.lower()

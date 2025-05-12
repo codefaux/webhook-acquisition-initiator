@@ -1,20 +1,23 @@
 #!/usr/bin/false
 
 import re
-from typing import List, Dict, Tuple
-from rapidfuzz import fuzz, utils as fuzzutils
 from collections import Counter
 from datetime import datetime
+from typing import Dict, List, Tuple
+
 from dateutil import parser as dateparser
+from rapidfuzz import fuzz
+from rapidfuzz import utils as fuzzutils
+
 
 def extract_episode_hint(title: str) -> Tuple[int, int]:
     """Attempts to parse season and episode numbers from the title."""
     patterns = [
-        r'[Ss](\d+)[Ee](\d+)',                            # S2E3
-        r'[Ss]eason[^\d]*(\d+)[^\d]+Episode[^\d]*(\d+)', # Season 2 Episode 3
-        r'[Ss](\d+)[^\d]+Ep(?:isode)?[^\d]*(\d+)',       # S2 Ep 3
-        r'[Ee]pisode[^\d]*(\d+)',                        # Episode 3
-        r'[Ee]p[^\d]*(\d+)'                              # Ep 3
+        r"[Ss](\d+)[Ee](\d+)",  # S2E3
+        r"[Ss]eason[^\d]*(\d+)[^\d]+Episode[^\d]*(\d+)",  # Season 2 Episode 3
+        r"[Ss](\d+)[^\d]+Ep(?:isode)?[^\d]*(\d+)",  # S2 Ep 3
+        r"[Ee]pisode[^\d]*(\d+)",  # Episode 3
+        r"[Ee]p[^\d]*(\d+)",  # Ep 3
     ]
     for pattern in patterns:
         match = re.search(pattern, title, re.IGNORECASE)
@@ -27,7 +30,6 @@ def extract_episode_hint(title: str) -> Tuple[int, int]:
     return -1, -1
 
 
-
 def build_token_frequencies(sonarr_data: List[Dict]) -> Dict[str, int]:
     token_counts = Counter()
     for entry in sonarr_data:
@@ -35,7 +37,10 @@ def build_token_frequencies(sonarr_data: List[Dict]) -> Dict[str, int]:
         token_counts.update(tokens)
     return token_counts
 
-def compute_weighted_overlap(input_tokens: set, candidate_tokens: set, freq_map: Dict[str, int]) -> float:
+
+def compute_weighted_overlap(
+    input_tokens: set, candidate_tokens: set, freq_map: Dict[str, int]
+) -> float:
     if not candidate_tokens:
         return 0.0
 
@@ -51,11 +56,13 @@ def compute_weighted_overlap(input_tokens: set, candidate_tokens: set, freq_map:
 
     return overlap_weight / total_weight if total_weight > 0 else 0
 
+
 def parse_date(date_input) -> datetime:
     try:
         return dateparser.parse(str(date_input), fuzzy=True)
     except (ValueError, TypeError):
         return None
+
 
 def date_distance_days(date1_input, date2_input) -> int:
     date1 = parse_date(date1_input)
@@ -64,16 +71,16 @@ def date_distance_days(date1_input, date2_input) -> int:
         return -1
     return abs((date1.date() - date2.date()).days)
 
-def score_candidate(main_title: str, season: int, episode: int,
-                    candidate: Dict, token_freq: Dict[str, int]) -> Tuple[int, str]:
+
+def score_candidate(
+    main_title: str,
+    season: int,
+    episode: int,
+    candidate: Dict,
+    token_freq: Dict[str, int],
+) -> Tuple[int, str]:
     score = 0
     reasons = []
-
-    # if season != -1:
-    #     main_title += f" season {season}"
-
-    # if episode != -1:
-    #     main_title += f" episode {episode}"
 
     if season != -1 and episode != -1:
         if candidate["season"] == season and candidate["episode"] == episode:
@@ -86,10 +93,12 @@ def score_candidate(main_title: str, season: int, episode: int,
     candidate_tokens = set(fuzzutils.default_process(candidate["title"]).split())
 
     token_score = fuzz.token_set_ratio(main_title, candidate["title"])
-    weighted_recall = compute_weighted_overlap(input_tokens, candidate_tokens, token_freq)
+    weighted_recall = compute_weighted_overlap(
+        input_tokens, candidate_tokens, token_freq
+    )
 
-    score += int(token_score * 0.3)              # Up to 30
-    score += int(weighted_recall * 70)           # Up to 70
+    score += int(token_score * 0.3)  # Up to 30
+    score += int(weighted_recall * 70)  # Up to 70
 
     # Penalize missed tokens (input expected but not found)
     missed_tokens = input_tokens - candidate_tokens
@@ -108,20 +117,29 @@ def score_candidate(main_title: str, season: int, episode: int,
 
     return score, "; ".join(reasons)
 
-def clean_text(text: str) -> str:
-    return re.sub(r'[^a-zA-Z0-9\s]', '', text).lower()
 
-def match_title_to_sonarr_episode(main_title: str, airdate: str, sonarr_data: List[Dict]) -> Dict:
+def clean_text(text: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9\s]", "", text).lower()
+
+
+def clean_sonarr_data(sonarr_data):
+    return [
+        {
+            **entry,
+            "series": clean_text(entry.get("series", "")),
+            "title": clean_text(entry.get("title", "")),
+            "orig_title": entry.get("title", ""),
+        }
+        for entry in sonarr_data
+    ]
+
+
+def match_title_to_sonarr_episode(
+    main_title: str, airdate: str, sonarr_data: List[Dict]
+) -> Dict:
     """Attempts to match a streaming title to a Sonarr entry with weighted keyword and date proximity scoring."""
     cleaned_title = clean_text(main_title)
-
-    cleaned_data = []
-    for entry in sonarr_data:
-        cleaned_entry = entry.copy()
-        cleaned_entry["series"] = clean_text(entry.get("series", ""))
-        cleaned_entry["title"] = clean_text(entry.get("title", ""))
-        cleaned_entry["orig_title"] = entry.get("title", "")
-        cleaned_data.append(cleaned_entry)
+    cleaned_data = clean_sonarr_data(sonarr_data)
 
     token_freq = build_token_frequencies(cleaned_data)
     season, episode = extract_episode_hint(cleaned_title)
@@ -131,7 +149,9 @@ def match_title_to_sonarr_episode(main_title: str, airdate: str, sonarr_data: Li
     best_reason = ""
 
     for candidate in cleaned_data:
-        score, reason = score_candidate(cleaned_title, season, episode, candidate, token_freq)
+        score, reason = score_candidate(
+            cleaned_title, season, episode, candidate, token_freq
+        )
 
         # Date distance bonus
         episode_date = candidate.get("air_date")
@@ -139,7 +159,7 @@ def match_title_to_sonarr_episode(main_title: str, airdate: str, sonarr_data: Li
             date_gap = date_distance_days(airdate, episode_date)
             if date_gap >= 0:
                 # Closer dates = higher score boost (e.g. linear penalty)
-                date_score_bonus = max(0, 50.0 - (date_gap*25))
+                date_score_bonus = max(0, 50.0 - (date_gap * 25))
                 score += date_score_bonus
                 reason += f"; date_gap={date_gap}d (bonus={date_score_bonus:.2f})"
             else:
@@ -158,8 +178,9 @@ def match_title_to_sonarr_episode(main_title: str, airdate: str, sonarr_data: Li
         "episode_title": best_match["title"] if best_match else None,
         "episode_orig_title": best_match["orig_title"] if best_match else None,
         "score": best_score,
-        "reason": best_reason
+        "reason": best_reason,
     }
+
 
 def match_title_to_sonarr_show(main_title: str, sonarr_shows) -> Dict:
     """Matches a streaming title to the best-matching Sonarr show using strict verbatim and token-based scoring."""
@@ -180,13 +201,17 @@ def match_title_to_sonarr_show(main_title: str, sonarr_shows) -> Dict:
 
         # Token similarity and keyword overlap
         token_score = fuzz.token_set_ratio(main_title, show_title)
-        keyword_overlap = len(show_tokens & input_tokens) / len(show_tokens) if show_tokens else 0
+        keyword_overlap = (
+            len(show_tokens & input_tokens) / len(show_tokens) if show_tokens else 0
+        )
 
         score = verbatim_bonus + int(token_score * 0.10) + int(keyword_overlap * 50)
 
-        reason = f"{'verbatim match; ' if verbatim_match else ''}" \
-                 f"token set similarity: {token_score}%, " \
-                 f"keyword overlap: {int(keyword_overlap * 100)}%"
+        reason = (
+            f"{'verbatim match; ' if verbatim_match else ''}"
+            f"token set similarity: {token_score}%, "
+            f"keyword overlap: {int(keyword_overlap * 100)}%"
+        )
 
         if score > best_score:
             best_id = show_id
@@ -199,5 +224,5 @@ def match_title_to_sonarr_show(main_title: str, sonarr_shows) -> Dict:
         "matched_id": best_id,
         "matched_show": best_match,
         "score": best_score,
-        "reason": best_reason
+        "reason": best_reason,
     }
