@@ -3,7 +3,7 @@
 import json
 import os
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import logger as _log
 from util import delete_item_file, load_item, save_item
@@ -55,25 +55,26 @@ def save_aging_queue():
 
 
 def aging_enqueue(aging_item):
-    from util import get_new_ripeness
+    from util import get_new_ripeness, get_next_aging_time
 
     if aging_item.get("ripeness", -1) == -1:
         aging_item["ripeness"] = get_new_ripeness(aging_item)
-        aging_item["next_aging"] = datetime.now() + timedelta(
-            hours=(24 / AGING_RIPENESS_PER_DAY)
-        )
+        aging_item["next_aging"] = get_next_aging_time()
 
     with aging_queue_condition:
         aging_queue.append(aging_item)
         save_aging_queue()
         aging_queue_condition.notify()  # does this cause immediate action?
 
+    return None
+
 
 def close_aging_item(aging_item, message, filename, stack_offset=2):
-    if DEBUG_MODE:
-        breakpoint()
+    # if DEBUG_MODE:
+    #     breakpoint()
     _log.msg(message, stack_offset)
-    save_item(aging_item, filename)
+    if filename:
+        save_item(aging_item, filename)
     delete_item_file("current_aging.json")
 
     return None
@@ -102,38 +103,44 @@ def recheck_episode_match(item):
 def process_aging_item(aging_item):
     from queue_manager import enqueue
     from sonarr_api import refresh_series
-    from util import get_new_ripeness
-
-    if DEBUG_MODE:
-        breakpoint()
+    from util import get_new_ripeness, get_next_aging_time
 
     if aging_item.get("ripeness", -1) == -1:
         aging_item["ripeness"] = get_new_ripeness(aging_item)
 
     if aging_item["ripeness"] < AGING_RIPENESS_PER_DAY * 3:
-        aging_item["ripeness"] += 1
-
         checked_item = recheck_episode_match(aging_item)
 
         if checked_item:
             enqueue(checked_item)
             return True, close_aging_item(
-                aging_item, "Returning to main queue", "requeued.json"
+                aging_item,
+                f"{_log._GREEN}Episode found.{_log._RESET} Returning item to main queue.",
+                "requeued.json",
             )
         else:
-            aging_item["next_aging"] = datetime.now() + timedelta(
-                hours=(24 / AGING_RIPENESS_PER_DAY)
-            )
-            refresh_series(aging_item["title_result"]["matched_id"] + 1)
-            _ = close_aging_item(
-                aging_item,
-                "Requesting Sonarr refresh and returning to aging queue.",
-                None,
-            )
+            now = int(datetime.now().timestamp())
+
+            if now - aging_item.get("last_scan", 0) > 120:
+                aging_item["last_scan"] = now
+
+                refresh_series(aging_item["title_result"]["matched_id"])
+                _ = close_aging_item(
+                    aging_item,
+                    "Requesting Sonarr refresh for '"
+                    f"{_log._YELLOW}{aging_item["title_result"]["matched_show"]}{_log._RESET}"
+                    "' and returning to aging queue.",
+                    None,
+                )
+            else:
+                aging_item["ripeness"] += 1
+                aging_item["next_aging"] = get_next_aging_time()
+
             return True, aging_item
+
     else:
         _log.msg(
-            f"Ripeness {aging_item["ripeness"]}: Item should be old enough for data"
+            f"Ripeness {aging_item["ripeness"]}: Item should be old enough for data."
         )
         return True, close_aging_item(
             aging_item,
@@ -160,26 +167,35 @@ def process_aging_queue(stop_event: threading.Event):
                 aging_queue_condition.wait(timeout=AGING_QUEUE_INTERVAL * 60)
 
             if not aging_item and aging_queue:
-                now = datetime.now()
+                now = int(datetime.now().timestamp())
                 eligible_aging_items = [
-                    n_item for n_item in aging_queue if n_item.get("next_aging") <= now
+                    n_item
+                    for n_item in aging_queue
+                    if n_item.get("next_aging", 0) <= now
                 ]
                 if eligible_aging_items:
                     # Sort by next_aging to pick the most overdue item
-                    eligible_aging_items.sort(key=lambda item: item["next_aging"])
+                    # _log.msg("Sorting eligible items..")
+                    eligible_aging_items.sort(
+                        key=lambda item: item.get("next_aging", 0)
+                    )
                     aging_item = eligible_aging_items[0]
                     aging_queue.remove(aging_item)
                     save_item(aging_item, "current_aging.json", True)
                     save_aging_queue()
+                # else:
+                # _log.msg("Queue present but no eligible items.")
 
         if aging_item:
+            _log.msg(f"Processing aging item\n{aging_item}")
+
             wait_before_loop, aging_item = process_aging_item(aging_item)
 
             if aging_item:
-                aging_enqueue(aging_item)
+                aging_item = aging_enqueue(aging_item)
             if not wait_before_loop:
                 continue
 
-            _log.msg(f"Aging queue thread sleeping for {AGING_QUEUE_INTERVAL} min.")
-            with aging_queue_condition:
-                aging_queue_condition.wait(timeout=AGING_QUEUE_INTERVAL * 60)
+        # _log.msg(f"Aging queue thread sleeping for {AGING_QUEUE_INTERVAL} min.")
+        with aging_queue_condition:
+            aging_queue_condition.wait(timeout=AGING_QUEUE_INTERVAL * 60)
