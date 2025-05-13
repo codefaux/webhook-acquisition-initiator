@@ -144,6 +144,7 @@ def get_episode_data_for_shows(show_title, show_ids):
             sonarr_data.append(
                 {
                     "series": show_title,
+                    "series_id": show_id,
                     "season": ep["seasonNumber"],
                     "episode": ep["episodeNumber"],
                     "episode_id": ep["id"],
