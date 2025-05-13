@@ -7,7 +7,8 @@ import time
 
 import logger as _log
 import uvicorn
-from queue_manager import process_aging_queue, process_queue
+from aging_queue_manager import process_aging_queue
+from queue_manager import process_queue
 from server import fastapi
 from sonarr_api import validate_sonarr_config
 
