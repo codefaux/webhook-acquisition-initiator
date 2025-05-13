@@ -146,7 +146,8 @@ def handle_downloading(status):
         )
         _log.msg(
             f"{_log._YELLOW}Downloading: {percent:.2f}% of {format_bytes(total_bytes)}"
-            f"{midstr}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}"
+            f"{midstr}\n{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}",
+            2,
         )
 
         # Update global state
@@ -165,14 +166,16 @@ def handle_finished(status):
     _log.msg(
         f"{_log._GREEN}Download complete. {total_bytes} in {elapsed}s ({speed}/s). "
         f"Finalizing file...{_log._RESET}\n"
-        f"{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}"
+        f"{_log._BLUE}filename:{_log._RESET} {status.get('filename', '')}",
+        2,
     )
 
 
 def handle_error(status):
     _log.msg(
         f"status: {_log._RED}error{_log._RESET}\n"
-        f"\t{_log._YELLOW}{status}{_log._RESET}"
+        f"\t{_log._YELLOW}{status}{_log._RESET}",
+        2,
     )
 
 

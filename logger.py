@@ -1,6 +1,9 @@
 import inspect
 import re
 from datetime import datetime
+from threading import Lock
+
+msg_lock = Lock()
 
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -19,8 +22,8 @@ _GREY = "\033[90m"
 _RESET = "\033[0m"
 
 
-def msg(message):
-    frame = inspect.stack()[1]
+def msg(message, stack_offset=1):
+    frame = inspect.stack()[stack_offset]
     module = inspect.getmodule(frame[0])
     caller_name = frame.function
     caller_file = module.__file__.split("/")[-1] if module else "Unknown"
@@ -38,11 +41,12 @@ def msg(message):
     if len(message_list) == 1:
         message_list.append("")
 
-    for idx, msg_line in enumerate(message_list):
-        if idx > 1:
-            print(f"{' ' * max(timecode_len, stack_len)}{msg_line}")
-        elif idx == 1:
-            print(f"{timecode_prepend}{' ' * timecode_offset}{msg_line}")
-        else:
-            print(f"{stack_prepend}{' ' * stack_offset}{msg_line}")
-    print("")
+    with msg_lock:
+        for idx, msg_line in enumerate(message_list):
+            if idx > 1:
+                print(f"{' ' * max(timecode_len, stack_len)}{msg_line}")
+            elif idx == 1:
+                print(f"{timecode_prepend}{' ' * timecode_offset}{msg_line}")
+            else:
+                print(f"{stack_prepend}{' ' * stack_offset}{msg_line}")
+        print("\n")
