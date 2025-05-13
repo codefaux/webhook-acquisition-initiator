@@ -60,7 +60,7 @@ def refresh_series(series_id):
         HTTPError: If the API request fails.
     """
     url = f"{SONARR_URL.rstrip('/')}/api/v3/command"
-    payload = {"name": "RefreshSeries", "seriesId": series_id + 1}
+    payload = {"name": "RefreshSeries", "seriesId": series_id}
 
     try:
         response = requests.post(url, headers=HEADERS, json=payload)
