@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import logger as _log
@@ -24,6 +24,12 @@ def date_distance_days(date1_input, date2_input) -> int:
     if date1 is None or date2 is None:
         return -1
     return abs((date1.date() - date2.date()).days)
+
+
+def get_next_aging_time():
+    return int(
+        (datetime.now() + timedelta(hours=(24 / AGING_RIPENESS_PER_DAY))).timestamp()
+    )
 
 
 def get_new_ripeness(item):
