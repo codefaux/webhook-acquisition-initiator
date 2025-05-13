@@ -6,6 +6,7 @@ from typing import Dict, List, Tuple
 
 from rapidfuzz import fuzz
 from rapidfuzz import utils as fuzzutils
+from sonarr_api import is_monitored_episode
 from util import date_distance_days
 
 
@@ -148,6 +149,12 @@ def match_title_to_sonarr_episode(
                 reason += f"; date_gap={date_gap}d (bonus={date_score_bonus:.2f})"
             else:
                 reason += "; no airdate match"
+
+        # Monitored bonus
+        if score > 70 and is_monitored_episode(
+            candidate["series_id"], candidate["season"], candidate["episode"]
+        ):
+            score += 1
 
         if score > best_score:
             best_match = candidate
