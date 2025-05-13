@@ -46,6 +46,31 @@ def validate_sonarr_config() -> bool:
         return False
 
 
+def refresh_series(series_id):
+    """
+    Triggers a series refresh in Sonarr for the specified series ID.
+
+    Args:
+        series_id (int): The ID of the series to refresh.
+
+    Returns:
+        dict: The response from the Sonarr API.
+
+    Raises:
+        HTTPError: If the API request fails.
+    """
+    url = f"{SONARR_URL.rstrip('/')}/api/v3/command"
+    payload = {"name": "RefreshSeries", "seriesId": series_id + 1}
+
+    try:
+        response = requests.post(url, headers=HEADERS, json=payload)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        _log.msg(f"Failed to refresh series {series_id}: {e}")
+        raise
+
+
 def get_all_series():
     """Returns a list of monitored show titles from Sonarr."""
     response = requests.get(f"{SONARR_URL.rstrip('/')}/api/v3/series", headers=HEADERS)
