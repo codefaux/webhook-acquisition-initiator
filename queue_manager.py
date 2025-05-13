@@ -7,13 +7,7 @@ import sys
 import threading
 
 import logger as _log
-from matcher import match_title_to_sonarr_episode, match_title_to_sonarr_show
-from sonarr_api import (get_all_series, get_episode_data_for_shows,
-                        import_downloaded_episode, is_episode_file,
-                        is_monitored_episode, is_monitored_series)
-from util import (delete_item_file, get_new_ripeness, load_item, save_item,
-                  tag_filename)
-from ytdlp_interface import download_video
+from util import delete_item_file, load_item, save_item
 
 DATA_DIR = os.getenv("DATA_DIR")
 
@@ -96,6 +90,9 @@ def diagnose_show_score(item):
 
 
 def diagnose_episode_score(item):
+    from aging_queue_manager import aging_enqueue
+    from util import get_new_ripeness
+
     # airdate; issue: too new, Sonarr metadata not updated?
     #          resolution: refresh Sonarr series data, requeue?
     # tokens too generic? resolution: manual intervention queue
@@ -120,6 +117,12 @@ def diagnose_episode_score(item):
 
 
 def match_and_check(item):
+    from matcher import (match_title_to_sonarr_episode,
+                         match_title_to_sonarr_show)
+    from sonarr_api import (get_all_series, get_episode_data_for_shows,
+                            is_episode_file, is_monitored_episode,
+                            is_monitored_series)
+
     _log.msg(
         f"Processing item:\n"
         f"\t{_log._GREEN}creator:{_log._RESET} {item.get('creator', '')}"
@@ -202,6 +205,8 @@ def match_and_check(item):
 
 
 def download_item(item):
+    from ytdlp_interface import download_video
+
     download_filename = download_video(item.get("url"), WAI_OUT_TEMP or WAI_OUT_PATH)
     item["download_filename"] = download_filename
 
@@ -219,6 +224,8 @@ def download_item(item):
 
 
 def rename_and_move_item(item):
+    from util import tag_filename
+
     tag_filepath = tag_filename(item.get("download_filename"))
     file_name = os.path.basename(tag_filepath)
 
@@ -233,6 +240,8 @@ def rename_and_move_item(item):
 
 
 def import_item(item):
+    from sonarr_api import import_downloaded_episode
+
     import_result = import_downloaded_episode(
         item["title_result"].get("matched_id"),
         item["episode_result"].get("season"),

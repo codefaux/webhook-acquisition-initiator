@@ -6,9 +6,12 @@ import threading
 from datetime import datetime, timedelta
 
 import logger as _log
-from matcher import match_title_to_sonarr_episode
-from sonarr_api import get_episode_data_for_shows, refresh_series
-from util import delete_item_file, get_new_ripeness, load_item, save_item
+from util import delete_item_file, load_item, save_item
+
+# from matcher import match_title_to_sonarr_episode
+# from queue_manager import enqueue
+# from sonarr_api import get_episode_data_for_shows, refresh_series
+# from util import delete_item_file, get_new_ripeness, load_item, save_item
 
 DATA_DIR = os.getenv("DATA_DIR")
 
@@ -52,6 +55,8 @@ def save_aging_queue():
 
 
 def aging_enqueue(aging_item):
+    from util import get_new_ripeness
+
     if aging_item.get("ripeness", -1) == -1:
         aging_item["ripeness"] = get_new_ripeness(aging_item)
         aging_item["next_aging"] = datetime.now() + timedelta(
@@ -75,6 +80,9 @@ def close_aging_item(aging_item, message, filename, stack_offset=2):
 
 
 def recheck_episode_match(item):
+    from matcher import match_title_to_sonarr_episode
+    from sonarr_api import get_episode_data_for_shows
+
     show_data = get_episode_data_for_shows(
         item["title_result"].get("matched_show"), item["title_result"].get("matched_id")
     )
@@ -92,6 +100,10 @@ def recheck_episode_match(item):
 
 
 def process_aging_item(aging_item):
+    from queue_manager import enqueue
+    from sonarr_api import refresh_series
+    from util import get_new_ripeness
+
     if DEBUG_MODE:
         breakpoint()
 
