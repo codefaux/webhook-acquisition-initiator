@@ -2,12 +2,11 @@
 
 import re
 from collections import Counter
-from datetime import datetime
 from typing import Dict, List, Tuple
 
-from dateutil import parser as dateparser
 from rapidfuzz import fuzz
 from rapidfuzz import utils as fuzzutils
+from util import date_distance_days
 
 
 def extract_episode_hint(title: str) -> Tuple[int, int]:
@@ -55,21 +54,6 @@ def compute_weighted_overlap(
             overlap_weight += weight
 
     return overlap_weight / total_weight if total_weight > 0 else 0
-
-
-def parse_date(date_input) -> datetime:
-    try:
-        return dateparser.parse(str(date_input), fuzzy=True)
-    except (ValueError, TypeError):
-        return None
-
-
-def date_distance_days(date1_input, date2_input) -> int:
-    date1 = parse_date(date1_input)
-    date2 = parse_date(date2_input)
-    if date1 is None or date2 is None:
-        return -1
-    return abs((date1.date() - date2.date()).days)
 
 
 def score_candidate(
