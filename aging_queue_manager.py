@@ -175,7 +175,8 @@ def process_aging_queue(stop_event: threading.Event):
                 ]
                 if eligible_aging_items:
                     # Sort by next_aging to pick the most overdue item
-                    # _log.msg("Sorting eligible items..")
+                    if DEBUG_MODE:
+                        _log.msg("Sorting eligible items..")
                     eligible_aging_items.sort(
                         key=lambda item: item.get("next_aging", 0)
                     )
@@ -183,8 +184,8 @@ def process_aging_queue(stop_event: threading.Event):
                     aging_queue.remove(aging_item)
                     save_item(aging_item, "current_aging.json", True)
                     save_aging_queue()
-                # else:
-                # _log.msg("Queue present but no eligible items.")
+                elif DEBUG_MODE:
+                    _log.msg("Queue present but no eligible items.")
 
         if aging_item:
             _log.msg(f"Processing aging item\n{aging_item}")
@@ -196,6 +197,7 @@ def process_aging_queue(stop_event: threading.Event):
             if not wait_before_loop:
                 continue
 
-        # _log.msg(f"Aging queue thread sleeping for {AGING_QUEUE_INTERVAL} min.")
+        if DEBUG_MODE:
+            _log.msg(f"Aging queue thread sleeping for {AGING_QUEUE_INTERVAL} min.")
         with aging_queue_condition:
             aging_queue_condition.wait(timeout=AGING_QUEUE_INTERVAL * 60)
