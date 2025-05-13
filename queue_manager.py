@@ -5,6 +5,7 @@ import os
 import shutil
 import sys
 import threading
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import logger as _log
@@ -12,29 +13,41 @@ import pycountry
 from matcher import match_title_to_sonarr_episode, match_title_to_sonarr_show
 from sonarr_api import (get_all_series, get_episode_data_for_shows,
                         import_downloaded_episode, is_episode_file,
-                        is_monitored_episode, is_monitored_series)
+                        is_monitored_episode, is_monitored_series,
+                        refresh_series)
+from util import date_distance_days
 from ytdlp_interface import download_video
 
 DATA_DIR = os.getenv("DATA_DIR")
-item = None
 
-QUEUE_FILE = os.path.join(DATA_DIR, "queue.json")
-queue_lock = threading.Lock()
-queue_condition = threading.Condition(lock=queue_lock)
-queue = []
-
+AGING_RIPENESS_PER_DAY = int(os.getenv("AGING_RIPENESS_PER_DAY", 4))
 SONARR_IN_PATH = os.getenv("SONARR_IN_PATH", None)
 WAI_OUT_TEMP = os.getenv("WAI_OUT_TEMP", None)
 WAI_OUT_PATH = os.getenv("WAI_OUT_PATH", "./output")
 HONOR_UNMON_SERIES = int(os.getenv("HONOR_UNMON_SERIES", 1)) == 1
 HONOR_UNMON_EPS = int(os.getenv("HONOR_UNMON_EPS", 1)) == 1
 OVERWRITE_EPS = int(os.getenv("OVERWRITE_EPS", 0)) == 1
-QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
 FLIP_FLOP_QUEUE = int(os.getenv("FLIP_FLOP_QUEUE", 0)) == 1
 DEBUG_MODE = os.getenv("DEBUG_MODE", 0) != 0
 
+QUEUE_FILE = os.path.join(DATA_DIR, "queue.json")
+QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
+queue_lock = threading.Lock()
+queue_condition = threading.Condition(lock=queue_lock)
+queue = []
+item = None
+
+AGING_QUEUE_FILE = os.path.join(DATA_DIR, "aging_queue.json")
+AGING_QUEUE_INTERVAL = int(os.getenv("AGING_QUEUE_INTERVAL", 1))
+aging_queue_lock = threading.Lock()
+aging_queue_condition = threading.Condition(lock=aging_queue_lock)
+aging_queue = []
+aging_item = None
+
 
 def load_queue():
+    global queue
+    queue = []
     if os.path.exists(QUEUE_FILE):
         with open(QUEUE_FILE, "r") as f:
             try:
@@ -45,9 +58,31 @@ def load_queue():
                 _log.msg("Failed to decode queue JSON; starting with empty queue.")
 
 
+def load_aging_queue():
+    global aging_queue
+    aging_queue = []
+    if os.path.exists(AGING_QUEUE_FILE):
+        with open(AGING_QUEUE_FILE, "r") as f:
+            try:
+                data = json.load(f)
+                if isinstance(data, list):
+                    aging_queue.extend(data)
+            except json.JSONDecodeError:
+                _log.msg(
+                    "Failed to decode queue JSON; starting with empty aging queue."
+                )
+
+
 def save_queue():
+    global queue
     with open(QUEUE_FILE, "w") as f:
         json.dump(queue, f, indent=2)
+
+
+def save_aging_queue():
+    global aging_queue
+    with open(AGING_QUEUE_FILE, "w") as f:
+        json.dump(aging_queue, f, indent=2)
 
 
 def load_item(file: str, remove_after: bool = False):
@@ -105,6 +140,19 @@ def enqueue(item: dict):
         queue.append(item)
         save_queue()
         queue_condition.notify()
+
+
+def aging_enqueue(aging_item):
+    if aging_item.get("ripeness", -1) == -1:
+        aging_item["ripeness"] = get_new_ripeness(aging_item)
+        aging_item["next_aging"] = datetime.now() + timedelta(
+            hours=(24 / AGING_RIPENESS_PER_DAY)
+        )
+
+    with aging_queue_condition:
+        aging_queue.append(aging_item)
+        save_aging_queue()
+        aging_queue_condition.notify()  # does this cause immediate action?
 
 
 def round_to_nearest_hd(width, height):
@@ -183,14 +231,81 @@ def dequeue(item: dict):
         return {"error": "Item not found in queue"}
 
 
-def close_item(item, message, filename):
+def close_item(item, message, filename, stack_offset=2):
     if DEBUG_MODE:
         breakpoint()
-    _log.msg(message)
-    save_item(item, filename)
+    _log.msg(message, stack_offset)
+    if filename:
+        save_item(item, filename)
     delete_item_file("current.json")
 
     return None
+
+
+def close_aging_item(aging_item, message, filename, stack_offset=2):
+    if DEBUG_MODE:
+        breakpoint()
+    _log.msg(message, stack_offset)
+    save_item(aging_item, filename)
+    delete_item_file("current_aging.json")
+
+    return None
+
+
+def diagnose_show_score(item):
+    # ...? resolution: manual intervention queue
+    breakpoint()
+
+    return close_item(
+        item,
+        f"Series match score not high enough. ({item["title_result"]["score"]} < 70)  Aborting.",
+        "series_score.json",
+    )
+
+
+def get_new_ripeness(item):
+    return date_distance_days(item["datecode"], date.today()) * AGING_RIPENESS_PER_DAY
+
+
+def diagnose_episode_score(item):
+    # airdate; issue: too new, Sonarr metadata not updated?
+    #          resolution: refresh Sonarr series data, requeue?
+    # tokens too generic? resolution: manual intervention queue
+    _log.msg(
+        f"Episode match score not high enough. ({item["episode_result"]["score"]} < 70)\n\tDiagnosing.",
+        2,
+    )
+
+    ripeness = get_new_ripeness(item)
+    breakpoint()
+
+    if ripeness < AGING_RIPENESS_PER_DAY * 3:
+        aging_enqueue(item)
+        return close_item(item, f"Ripeness {ripeness}: Requeue to aging queue", None)
+
+    else:
+        _log.msg(f"Ripeness {ripeness}: Item should be old enough for data")
+
+    return close_item(
+        item, "Moving to manual intervention queue.", "manual_intervention.json"
+    )
+
+
+def recheck_episode_match(item):
+    show_data = get_episode_data_for_shows(
+        item["title_result"].get("matched_show"), item["title_result"].get("matched_id")
+    )
+    main_title = f"{item.get('creator', '')} :: {item.get('title', '')}"
+    episode_result = match_title_to_sonarr_episode(
+        main_title, item.get("datecode", -1), show_data
+    )
+
+    if episode_result["score"] < 70:
+        return None
+
+    item["episode_result"] = episode_result
+
+    return item
 
 
 def match_and_check(item):
@@ -216,11 +331,8 @@ def match_and_check(item):
     )
 
     if title_result["score"] < 70:
-        return close_item(
-            item,
-            f"Series match score not high enough. ({title_result['score']} < 70)  Aborting.",
-            "series_score.json",
-        )
+        item = diagnose_show_score(item)
+        return item
 
     if HONOR_UNMON_SERIES:
         if not is_monitored_series(title_result["matched_id"]):
@@ -248,11 +360,8 @@ def match_and_check(item):
     )
 
     if episode_result["score"] < 70:
-        return close_item(
-            item,
-            f"Episode match score not high enough. ({episode_result['score']} < 70)  Aborting.",
-            "episode_score.json",
-        )
+        item = diagnose_episode_score(item)
+        return item
 
     if HONOR_UNMON_EPS:
         if not is_monitored_episode(
@@ -330,7 +439,7 @@ def process_item(item):
     item = match_and_check(item)
 
     if not item:
-        return False
+        return False, None
 
     if DEBUG_MODE:
         breakpoint()
@@ -347,11 +456,54 @@ def process_item(item):
         "pass.json",
     )
 
-    return True
+    return True, item
+
+
+def process_aging_item(aging_item):
+    if DEBUG_MODE:
+        breakpoint()
+
+    if aging_item.get("ripeness", -1) == -1:
+        aging_item["ripeness"] = get_new_ripeness(aging_item)
+
+    if aging_item["ripeness"] < AGING_RIPENESS_PER_DAY * 3:
+        aging_item["ripeness"] += 1
+
+        checked_item = recheck_episode_match(aging_item)
+
+        if checked_item:
+            enqueue(checked_item)
+            return True, close_aging_item(
+                aging_item, "Returning to main queue", "requeued.json"
+            )
+        else:
+            aging_item["next_aging"] = datetime.now() + timedelta(
+                hours=(24 / AGING_RIPENESS_PER_DAY)
+            )
+            refresh_series(aging_item["title_result"]["matched_id"] + 1)
+            _ = close_aging_item(
+                aging_item,
+                "Requesting Sonarr refresh and returning to aging queue.",
+                None,
+            )
+            return True, aging_item
+    else:
+        _log.msg(f"Ripeness {item["ripeness"]}: Item should be old enough for data")
+        return True, close_aging_item(
+            aging_item,
+            "Moving to manual intervention queue.",
+            "manual_intervention.json",
+        )
 
 
 def process_queue(stop_event: threading.Event):
-    item = load_item("current.json")
+    global item
+    global queue
+
+    if item is None:
+        item = load_item("current.json")
+    if queue == []:
+        load_queue()
 
     while not stop_event.is_set():
         with queue_condition:
@@ -371,9 +523,7 @@ def process_queue(stop_event: threading.Event):
                 save_queue()
 
         if item:
-            wait_before_loop = process_item(item)
-
-            item = None
+            wait_before_loop, item = process_item(item)
 
             if not wait_before_loop:
                 continue
@@ -381,3 +531,51 @@ def process_queue(stop_event: threading.Event):
             _log.msg(f"Queue thread sleeping for {QUEUE_INTERVAL} min.")
             with queue_condition:
                 queue_condition.wait(timeout=QUEUE_INTERVAL * 60)
+
+
+def process_aging_queue(stop_event: threading.Event):
+    global aging_item
+    global aging_queue
+
+    if aging_item is None:
+        aging_item = load_item("current_aging.json")
+    if aging_queue == []:
+        load_aging_queue()
+
+    while not stop_event.is_set():
+        with aging_queue_condition:
+            while not aging_item and not aging_queue and not stop_event.is_set():
+                _log.msg(
+                    f"No current aging item. No aging queue. Sleeping for at most {AGING_QUEUE_INTERVAL} min."
+                )
+                aging_queue_condition.wait(timeout=AGING_QUEUE_INTERVAL * 60)
+
+            if not aging_item and aging_queue:
+                now = datetime.now()
+                eligible_aging_items = [
+                    n_item for n_item in aging_queue if n_item.get("next_aging") <= now
+                ]
+                if eligible_aging_items:
+                    # Sort by next_aging to pick the most overdue item
+                    eligible_aging_items.sort(key=lambda item: item["next_aging"])
+                    aging_item = eligible_aging_items[0]
+                    aging_queue.remove(aging_item)
+                    save_item(aging_item, "current_aging.json", True)
+                    save_aging_queue()
+
+        if aging_item:
+            wait_before_loop, aging_item = process_aging_item(aging_item)
+
+            if aging_item:
+                aging_enqueue(aging_item)
+            if not wait_before_loop:
+                continue
+
+            _log.msg(f"Aging queue thread sleeping for {AGING_QUEUE_INTERVAL} min.")
+            with aging_queue_condition:
+                aging_queue_condition.wait(timeout=AGING_QUEUE_INTERVAL * 60)
+
+
+# rewrite -
+# - aging queue ticks per minute.
+# - aging_item bears process-after mark, advanced by process_aging_item

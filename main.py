@@ -7,7 +7,7 @@ import time
 
 import logger as _log
 import uvicorn
-from queue_manager import load_queue, process_queue
+from queue_manager import process_aging_queue, process_queue
 from server import fastapi
 from sonarr_api import validate_sonarr_config
 
@@ -21,12 +21,20 @@ def handle_exit_signal(signum, frame):
     stop_event.set()
 
 
-def start_background_processor():
-    processor_thread = threading.Thread(
+def start_queue_processor():
+    queue_thread = threading.Thread(
         target=process_queue, args=(stop_event,), daemon=True
     )
-    processor_thread.start()
-    return processor_thread
+    queue_thread.start()
+    return queue_thread
+
+
+def start_aging_queue_processor():
+    aging_queue_thread = threading.Thread(
+        target=process_aging_queue, args=(stop_event,), daemon=True
+    )
+    aging_queue_thread.start()
+    return aging_queue_thread
 
 
 if __name__ == "__main__":
@@ -45,20 +53,18 @@ if __name__ == "__main__":
     if retries:
         exit("Sonarr connection failed. Please check your configuration.")
 
-    load_queue()
-
     # Register graceful shutdown signals
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, handle_exit_signal)
 
-    processor_thread = start_background_processor()
+    aging_queue_thread = start_aging_queue_processor()
+    queue_thread = start_queue_processor()
 
     try:
         uvicorn.run(fastapi, host="0.0.0.0", port=8000)
     finally:
         stop_event.set()
-        processor_thread.join()
-        from queue_manager import save_queue
+        queue_thread.join()
+        aging_queue_thread.join()
 
-        save_queue()
         _log.msg("Shutdown complete.")
