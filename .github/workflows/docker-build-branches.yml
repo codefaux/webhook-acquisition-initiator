@@ -1,22 +1,23 @@
-name: Build and Push Docker Image
+name: Build and Push Docker Image (branches)
 
 on:
   workflow_dispatch:
   push:
-    branches:
+    branches-ignore:
       - main
     paths:
       - 'Dockerfile'
+      - 'logger.py'
       - 'main.py'
       - 'matcher.py'
       - 'processor.py'
       - 'queue_manager.py'
+      - 'requirements.txt'
       - 'server.py'
       - 'sonarr_api.py'
+      - 'util.py'
       - 'ytdlp_interface.py'
-      - 'logger.py'
-      - 'requirements.txt'
-      - '.github/workflows/docker-build.yml'
+      - '.github/workflows/docker-build-branches.yml'
 
 env:
   REGISTRY: ghcr.io
@@ -44,11 +45,15 @@ jobs:
         id: version
         run: echo "BUILD_TAG=build-$(date +'%Y%m%d')-${{ github.run_number }}" >> $GITHUB_ENV
 
+      - name: Extract Branch Name
+        id: extract_branch
+        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BUILD_TAG }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}_${{ env.BUILD_TAG }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}
