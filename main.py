@@ -12,7 +12,19 @@ from queue_manager import process_queue
 from server import fastapi
 from sonarr_api import validate_sonarr_config
 
-DATA_DIR = os.getenv("DATA_DIR")
+# Load configuration from environment variables
+DATA_DIR = os.getenv("DATA_DIR") or "./data"
+SONARR_URL = os.getenv("SONARR_URL")
+API_KEY = os.getenv("SONARR_API")
+SONARR_IN_PATH = os.getenv("SONARR_IN_PATH")
+
+if not SONARR_URL or not API_KEY:
+    raise RuntimeError(
+        "Both SONARR_URL and SONARR_API environment variables must be set."
+    )
+
+if not SONARR_IN_PATH:
+    raise RuntimeError("SONARR_IN_PATH must be set.")
 
 stop_event = threading.Event()
 
