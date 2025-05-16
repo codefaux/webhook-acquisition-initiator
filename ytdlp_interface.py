@@ -61,7 +61,7 @@ def parse_patched_options(opts: list) -> yt_dlp.ParsedOptions:
 default_ytdlp_opts = parse_patched_options([]).ydl_opts
 
 
-def cli_to_api(opts: list, cli_defaults: bool = False):
+def cli_to_api(opts: list, cli_defaults: bool = False) -> dict:
     new_opts = (yt_dlp.parse_options if cli_defaults else parse_patched_options)(
         opts
     ).ydl_opts
