@@ -7,18 +7,21 @@ import logger as _log
 import pycountry
 from dateutil import parser as dateparser
 
-DATA_DIR = os.getenv("DATA_DIR")
+DATA_DIR = os.getenv("DATA_DIR") or "./data"
 AGING_RIPENESS_PER_DAY = int(os.getenv("AGING_RIPENESS_PER_DAY", 4))
 
 
-def parse_date(date_input) -> datetime:
+def parse_date(date_input: str | date) -> datetime | None:
+    if isinstance(date_input, date):
+        date_input = str(date_input)
+
     try:
-        return dateparser.parse(str(date_input), fuzzy=True)
+        return dateparser.parse(date_input, fuzzy=True)
     except (ValueError, TypeError):
         return None
 
 
-def date_distance_days(date1_input, date2_input) -> int:
+def date_distance_days(date1_input: str | date, date2_input: str | date) -> int:
     date1 = parse_date(date1_input)
     date2 = parse_date(date2_input)
     if date1 is None or date2 is None:
@@ -26,17 +29,25 @@ def date_distance_days(date1_input, date2_input) -> int:
     return abs((date1.date() - date2.date()).days)
 
 
-def get_next_aging_time():
+def get_next_aging_time() -> int:
     return int(
         (datetime.now() + timedelta(hours=(24 / AGING_RIPENESS_PER_DAY))).timestamp()
     )
 
 
-def get_new_ripeness(item):
-    return date_distance_days(item["datecode"], date.today()) * AGING_RIPENESS_PER_DAY
+def get_new_ripeness(item: dict) -> int:
+    return (
+        date_distance_days(item["datecode"], date.today().strftime("%Y-%m-%d"))
+        * AGING_RIPENESS_PER_DAY
+    )
 
 
-def load_item(file: str, remove_after: bool = False):
+def ensure_dir(directory: str):
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+
+def load_item(file: str, remove_after: bool = False) -> dict | None:
     file_path = os.path.join(DATA_DIR, file)
 
     if os.path.exists(file_path):
@@ -86,7 +97,7 @@ def save_item(item, file: str, replace: bool = False):
         json.dump(existing_items, f, indent=2)
 
 
-def round_to_nearest_hd(width, height):
+def round_to_nearest_hd(width: int, height: int) -> tuple[int, int]:
     resolutions = [
         (426, 240),
         (640, 360),
@@ -104,7 +115,7 @@ def round_to_nearest_hd(width, height):
     return (7680, 4320)
 
 
-def tag_filename(file_filepath):
+def tag_filename(file_filepath: str) -> str:
     data_name = str(Path(file_filepath).with_suffix(".info.json"))
     file_data = {}
 
@@ -136,13 +147,14 @@ def tag_filename(file_filepath):
         _log.msg(f"lang_id: {lang_id}\tlang_condifence: {lang_prob}")
         file_lang = pycountry.languages.get(alpha_2=lang_id)
     else:
-        file_lang = pycountry.languages.get(alpha_2=file_lang)
+        new_lang = dict(pycountry.languages.get(alpha_2=file_lang) or {})
+        file_lang = new_lang.get("alpha_3", "unk")
 
-    file_tags = f".WEB-DL.{file_width}x{file_height}.{file_lang.alpha_3}-cfwai"
+    file_tags = f".WEB-DL.{file_width}x{file_height}.{file_lang}-cfwai"
 
     file_path = Path(file_filepath)
     new_name = file_path.stem + file_tags + file_path.suffix
-    new_filepath = file_path.with_name(new_name)
+    new_filepath = str(file_path.with_name(new_name))
     file_path.rename(new_filepath)
 
     _log.msg(f"File renamed: {new_filepath}")

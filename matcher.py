@@ -107,7 +107,7 @@ def clean_text(text: str) -> str:
     return re.sub(r"[^a-zA-Z0-9\s]", "", text).lower()
 
 
-def clean_sonarr_data(sonarr_data):
+def clean_sonarr_data(sonarr_data: list[dict]) -> list[dict]:
     return [
         {
             **entry,
@@ -141,7 +141,7 @@ def match_title_to_sonarr_episode(
         # Date distance bonus
         episode_date = candidate.get("air_date")
         if episode_date != 0:
-            date_gap = date_distance_days(airdate, episode_date)
+            date_gap = date_distance_days(airdate, str(episode_date))
             if date_gap >= 0:
                 # Closer dates = higher score boost (e.g. linear penalty)
                 date_score_bonus = max(0, 50.0 - (date_gap * 25))

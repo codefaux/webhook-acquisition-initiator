@@ -5,7 +5,7 @@ import logger as _log
 import yt_dlp
 import yt_dlp.options
 
-DATA_DIR = os.getenv("DATA_DIR")
+DATA_DIR = os.getenv("DATA_DIR") or "./data"
 netrc_file = os.path.join(DATA_DIR, "netrc")
 ytdlpconf_file = os.path.join(DATA_DIR, "yt-dlp.conf")
 using_netrc = os.path.exists(netrc_file)
@@ -29,7 +29,7 @@ class YTDLQuietLogger:
         print(msg)  # Allow errors to pass through
 
 
-def format_bytes(size):
+def format_bytes(size: int | float) -> str:
     power = 1024
     n = 0
     units = ["B", "KB", "MB", "GB"]
@@ -41,15 +41,10 @@ def format_bytes(size):
     return f"{size:.2f} {units[n]}"
 
 
-def ensure_dir(directory):
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-
 create_parser = yt_dlp.options.create_parser
 
 
-def parse_patched_options(opts):
+def parse_patched_options(opts: list) -> yt_dlp.ParsedOptions:
     patched_parser = create_parser()
     patched_parser.defaults.update(
         {
@@ -66,12 +61,12 @@ def parse_patched_options(opts):
 default_ytdlp_opts = parse_patched_options([]).ydl_opts
 
 
-def cli_to_api(opts, cli_defaults=False):
-    opts = (yt_dlp.parse_options if cli_defaults else parse_patched_options)(
+def cli_to_api(opts: list, cli_defaults: bool = False):
+    new_opts = (yt_dlp.parse_options if cli_defaults else parse_patched_options)(
         opts
     ).ydl_opts
 
-    diff = {k: v for k, v in opts.items() if default_ytdlp_opts[k] != v}
+    diff = {k: v for k, v in new_opts.items() if default_ytdlp_opts[k] != v}
     if "postprocessors" in diff:
         diff["postprocessors"] = [
             pp
@@ -81,10 +76,12 @@ def cli_to_api(opts, cli_defaults=False):
     return diff
 
 
-def download_video(video_url, target_folder):
+def download_video(video_url: str, target_folder: str) -> str | None:
     """Download a video using the yt_dlp Python API into the target folder.
     Returns the destination file path or None on failure.
     """
+    from util import ensure_dir
+
     ensure_dir(target_folder)
 
     ydl_opts = {
@@ -127,7 +124,7 @@ def download_video(video_url, target_folder):
         return None
 
 
-def handle_downloading(status):
+def handle_downloading(status: dict):
     global last_print_time, last_print_percent
     current_time = time.time()
     percent = status.get("_percent", 0)
@@ -155,7 +152,7 @@ def handle_downloading(status):
         last_print_percent = int(percent / 25) * 25
 
 
-def handle_finished(status):
+def handle_finished(status: dict):
     global last_print_time, last_print_percent
     last_print_time = 0
     last_print_percent = 0
@@ -171,7 +168,7 @@ def handle_finished(status):
     )
 
 
-def handle_error(status):
+def handle_error(status: dict):
     _log.msg(
         f"status: {_log._RED}error{_log._RESET}\n"
         f"\t{_log._YELLOW}{status}{_log._RESET}",
@@ -179,7 +176,7 @@ def handle_error(status):
     )
 
 
-def download_progress_hook(status):
+def download_progress_hook(status: dict):
     handlers = {
         "downloading": handle_downloading,
         "finished": handle_finished,

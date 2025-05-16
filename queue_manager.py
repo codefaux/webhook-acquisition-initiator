@@ -9,11 +9,11 @@ import threading
 import logger as _log
 from util import delete_item_file, load_item, save_item
 
-DATA_DIR = os.getenv("DATA_DIR")
+DATA_DIR = os.getenv("DATA_DIR", "./data")
 
 AGING_RIPENESS_PER_DAY = int(os.getenv("AGING_RIPENESS_PER_DAY", 4))
-SONARR_IN_PATH = os.getenv("SONARR_IN_PATH", None)
-WAI_OUT_TEMP = os.getenv("WAI_OUT_TEMP", None)
+SONARR_IN_PATH = os.getenv("SONARR_IN_PATH", "")
+WAI_OUT_TEMP = os.getenv("WAI_OUT_TEMP")
 WAI_OUT_PATH = os.getenv("WAI_OUT_PATH", "./output")
 HONOR_UNMON_SERIES = int(os.getenv("HONOR_UNMON_SERIES", 1)) == 1
 HONOR_UNMON_EPS = int(os.getenv("HONOR_UNMON_EPS", 1)) == 1
@@ -55,19 +55,20 @@ def enqueue(item: dict):
         queue_condition.notify()
 
 
-def dequeue(item: dict):
+def dequeue(item: dict) -> bool:
     with queue_condition:
         for i, q_item in enumerate(queue):
             if q_item == item:
                 del queue[i]
                 save_queue()
 
-                return {"status": "removed"}
+                return True
+        return False
 
-        return {"error": "Item not found in queue"}
 
-
-def close_item(item, message, filename, stack_offset=2):
+def close_item(
+    item: dict, message: str, filename: str | None, stack_offset: int = 2
+) -> dict | None:
     if DEBUG_MODE:
         breakpoint()
     _log.msg(message, stack_offset)
@@ -78,7 +79,7 @@ def close_item(item, message, filename, stack_offset=2):
     return None
 
 
-def diagnose_show_score(item):
+def diagnose_show_score(item: dict) -> dict | None:
     # ...? resolution: manual intervention queue
     breakpoint()
 
@@ -89,7 +90,7 @@ def diagnose_show_score(item):
     )
 
 
-def diagnose_episode_score(item):
+def diagnose_episode_score(item: dict) -> dict | None:
     from aging_queue_manager import aging_enqueue
     from util import get_new_ripeness
 
@@ -116,7 +117,7 @@ def diagnose_episode_score(item):
     )
 
 
-def match_and_check(item):
+def match_and_check(item: dict) -> dict | None:
     from matcher import (match_title_to_sonarr_episode,
                          match_title_to_sonarr_show)
     from sonarr_api import (get_all_series, get_episode_data_for_shows,
@@ -145,8 +146,7 @@ def match_and_check(item):
     )
 
     if title_result["score"] < 70:
-        item = diagnose_show_score(item)
-        return item
+        return diagnose_show_score(item)
 
     if HONOR_UNMON_SERIES:
         if not is_monitored_series(title_result["matched_id"]):
@@ -157,7 +157,7 @@ def match_and_check(item):
             )
 
     show_data = get_episode_data_for_shows(
-        title_result.get("matched_show"), title_result.get("matched_id")
+        title_result.get("matched_show", ""), title_result.get("matched_id", 0)
     )
     episode_result = match_title_to_sonarr_episode(
         main_title, item.get("datecode", -1), show_data
@@ -174,14 +174,13 @@ def match_and_check(item):
     )
 
     if episode_result["score"] < 70:
-        item = diagnose_episode_score(item)
-        return item
+        return diagnose_episode_score(item)
 
     if HONOR_UNMON_EPS:
         if not is_monitored_episode(
-            title_result.get("matched_id"),
-            episode_result.get("season"),
-            episode_result.get("episode"),
+            title_result.get("matched_id", 0),
+            episode_result.get("season", 0),
+            episode_result.get("episode", 0),
         ):
             return close_item(
                 item,
@@ -191,9 +190,9 @@ def match_and_check(item):
 
     if not OVERWRITE_EPS:
         if is_episode_file(
-            title_result.get("matched_id"),
-            episode_result.get("season"),
-            episode_result.get("episode"),
+            title_result.get("matched_id", 0),
+            episode_result.get("season", 0),
+            episode_result.get("episode", 0),
         ):
             return close_item(
                 item,
@@ -204,14 +203,16 @@ def match_and_check(item):
     return item
 
 
-def download_item(item):
+def download_item(item: dict) -> dict | None:
     from ytdlp_interface import download_video
 
-    download_filename = download_video(item.get("url"), WAI_OUT_TEMP or WAI_OUT_PATH)
+    download_filename = download_video(
+        item.get("url", ""), WAI_OUT_TEMP or WAI_OUT_PATH
+    )
     item["download_filename"] = download_filename
 
     if not download_filename:
-        item = close_item(
+        _ = close_item(
             item,
             "No file at download location. Aborting thread. (API will still function.)",
             "download_fail.json",
@@ -223,10 +224,10 @@ def download_item(item):
     return item
 
 
-def rename_and_move_item(item):
+def rename_and_move_item(item: dict) -> dict | None:
     from util import tag_filename
 
-    tag_filepath = tag_filename(item.get("download_filename"))
+    tag_filepath = tag_filename(item.get("download_filename", ""))
     file_name = os.path.basename(tag_filepath)
 
     if WAI_OUT_TEMP:  # NOT WORKING
@@ -239,7 +240,7 @@ def rename_and_move_item(item):
     return item
 
 
-def import_item(item):
+def import_item(item: dict) -> dict | None:
     from sonarr_api import import_downloaded_episode
 
     import_result = import_downloaded_episode(
@@ -255,7 +256,10 @@ def import_item(item):
     return item
 
 
-def process_item(item):
+def process_item(item: dict | None) -> tuple[bool, dict | None]:
+    if not item:
+        return False, None
+
     item = match_and_check(item)
 
     if not item:
@@ -266,13 +270,22 @@ def process_item(item):
 
     item = download_item(item)
 
+    if not item:
+        return False, None
+
     item = rename_and_move_item(item)
+
+    if not item:
+        return False, None
 
     item = import_item(item)
 
+    if not item:
+        return False, None
+
     item = close_item(
         item,
-        f"Item Sonarr Import result: {item.get("import_result").get('status')}",
+        f"Item Sonarr Import result: {item.get("import_result", {}).get('status', "")}",
         "pass.json",
     )
 

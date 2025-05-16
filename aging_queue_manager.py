@@ -13,7 +13,7 @@ from util import delete_item_file, load_item, save_item
 # from sonarr_api import get_episode_data_for_shows, refresh_series
 # from util import delete_item_file, get_new_ripeness, load_item, save_item
 
-DATA_DIR = os.getenv("DATA_DIR")
+DATA_DIR = os.getenv("DATA_DIR") or "./data"
 
 AGING_RIPENESS_PER_DAY = int(os.getenv("AGING_RIPENESS_PER_DAY", 4))
 SONARR_IN_PATH = os.getenv("SONARR_IN_PATH", None)
@@ -54,7 +54,7 @@ def save_aging_queue():
         json.dump(aging_queue, f, indent=2)
 
 
-def aging_enqueue(aging_item):
+def aging_enqueue(aging_item: dict) -> None:
     from util import get_new_ripeness, get_next_aging_time
 
     if aging_item.get("ripeness", -1) == -1:
@@ -69,7 +69,9 @@ def aging_enqueue(aging_item):
     return None
 
 
-def close_aging_item(aging_item, message, filename, stack_offset=2):
+def close_aging_item(
+    aging_item: dict, message: str, filename: str | None, stack_offset: int = 2
+) -> None:
     # if DEBUG_MODE:
     #     breakpoint()
     _log.msg(message, stack_offset)
@@ -80,7 +82,7 @@ def close_aging_item(aging_item, message, filename, stack_offset=2):
     return None
 
 
-def recheck_episode_match(item):
+def recheck_episode_match(item: dict) -> dict | None:
     from matcher import match_title_to_sonarr_episode
     from sonarr_api import get_episode_data_for_shows
 
@@ -100,7 +102,7 @@ def recheck_episode_match(item):
     return item
 
 
-def process_aging_item(aging_item):
+def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
     from queue_manager import enqueue
     from sonarr_api import refresh_series
     from util import get_new_ripeness, get_next_aging_time
