@@ -5,36 +5,33 @@ import os
 import shutil
 import sys
 import threading
-from pathlib import Path
 
 import logger as _log
-import pycountry
-from matcher import match_title_to_sonarr_episode, match_title_to_sonarr_show
-from sonarr_api import (get_all_series, get_episode_data_for_shows,
-                        import_downloaded_episode, is_episode_file,
-                        is_monitored_episode, is_monitored_series)
-from ytdlp_interface import download_video
+from util import delete_item_file, load_item, save_item
 
-DATA_DIR = os.getenv("DATA_DIR")
-item = None
+DATA_DIR = os.getenv("DATA_DIR", "./data")
 
-QUEUE_FILE = os.path.join(DATA_DIR, "queue.json")
-queue_lock = threading.Lock()
-queue_condition = threading.Condition(lock=queue_lock)
-queue = []
-
-SONARR_IN_PATH = os.getenv("SONARR_IN_PATH", None)
-WAI_OUT_TEMP = os.getenv("WAI_OUT_TEMP", None)
+AGING_RIPENESS_PER_DAY = int(os.getenv("AGING_RIPENESS_PER_DAY", 4))
+SONARR_IN_PATH = os.getenv("SONARR_IN_PATH", "")
+WAI_OUT_TEMP = os.getenv("WAI_OUT_TEMP")
 WAI_OUT_PATH = os.getenv("WAI_OUT_PATH", "./output")
 HONOR_UNMON_SERIES = int(os.getenv("HONOR_UNMON_SERIES", 1)) == 1
 HONOR_UNMON_EPS = int(os.getenv("HONOR_UNMON_EPS", 1)) == 1
 OVERWRITE_EPS = int(os.getenv("OVERWRITE_EPS", 0)) == 1
-QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
 FLIP_FLOP_QUEUE = int(os.getenv("FLIP_FLOP_QUEUE", 0)) == 1
 DEBUG_MODE = os.getenv("DEBUG_MODE", 0) != 0
 
+QUEUE_FILE = os.path.join(DATA_DIR, "queue.json")
+QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
+queue_lock = threading.Lock()
+queue_condition = threading.Condition(lock=queue_lock)
+queue = []
+item = None
+
 
 def load_queue():
+    global queue
+    queue = []
     if os.path.exists(QUEUE_FILE):
         with open(QUEUE_FILE, "r") as f:
             try:
@@ -46,58 +43,9 @@ def load_queue():
 
 
 def save_queue():
+    global queue
     with open(QUEUE_FILE, "w") as f:
         json.dump(queue, f, indent=2)
-
-
-def load_item(file: str, remove_after: bool = False):
-    file_path = os.path.join(DATA_DIR, file)
-
-    if os.path.exists(file_path):
-        item = None
-        with open(file_path, "r") as f:
-            try:
-                item = json.load(f)
-            except json.JSONDecodeError:
-                _log.msg(f"Failed to decode JSON '{file_path}' ; returning None.")
-        if remove_after:
-            os.remove(file_path)
-
-        return item
-
-
-def delete_item_file(file: str):
-    file_path = os.path.join(DATA_DIR, file)
-
-    if os.path.exists(file_path):
-        os.remove(file_path)
-
-
-def save_item(item, file: str, replace: bool = False):
-    file_path = os.path.join(DATA_DIR, file)
-
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-    if not replace:
-        existing_items = []
-        if os.path.exists(file_path):
-            try:
-                with open(file_path, "r") as f:
-                    existing_items = json.load(f)
-                    if not isinstance(existing_items, list):
-                        _log.msg(
-                            f"Warning: Expected list in {file}, got {type(existing_items)}. Overwriting."
-                        )
-                        existing_items = []
-            except json.JSONDecodeError:
-                _log.msg(f"Warning: Failed to decode {file}. Overwriting.")
-
-        existing_items.append(item)
-    else:
-        existing_items = item
-
-    with open(file_path, "w") as f:
-        json.dump(existing_items, f, indent=2)
 
 
 def enqueue(item: dict):
@@ -107,93 +55,75 @@ def enqueue(item: dict):
         queue_condition.notify()
 
 
-def round_to_nearest_hd(width, height):
-    resolutions = [
-        (426, 240),
-        (640, 360),
-        (854, 480),
-        (1280, 720),
-        (1920, 1080),
-        (2560, 1440),
-        (3840, 2160),
-        (7680, 4320),
-    ]
-    for w, h in resolutions:
-        if width <= w and height <= h:
-            return (w, h)
-
-    return (7680, 4320)
-
-
-def tag_filename(file_filepath):
-    data_name = str(Path(file_filepath).with_suffix(".info.json"))
-    file_data = {}
-
-    if os.path.exists(data_name):
-        with open(data_name, "r") as f:
-            try:
-                file_data = json.load(f)
-            except json.JSONDecodeError:
-                _log.msg("Failed to decode file JSON; skipping retag.")
-
-                return file_filepath
-
-    file_width, file_height = round_to_nearest_hd(
-        file_data["width"], file_data["height"]
-    )
-
-    file_lang = file_data.get("language", None)
-    if not file_lang:
-        # import langid
-        from langid.langid import LanguageIdentifier, model
-
-        identifier = LanguageIdentifier.from_modelstring(model, norm_probs=True)
-        classify_string = file_data.get("description", None)
-        if not classify_string:
-            classify_string = file_data.get("title", None)
-
-        lang_id, lang_prob = identifier.classify(classify_string)
-
-        _log.msg(f"lang_id: {lang_id}\tlang_condifence: {lang_prob}")
-        file_lang = pycountry.languages.get(alpha_2=lang_id)
-    else:
-        file_lang = pycountry.languages.get(alpha_2=file_lang)
-
-    file_tags = f".WEB-DL.{file_width}x{file_height}.{file_lang.alpha_3}-cfwai"
-
-    file_path = Path(file_filepath)
-    new_name = file_path.stem + file_tags + file_path.suffix
-    new_filepath = file_path.with_name(new_name)
-    file_path.rename(new_filepath)
-
-    _log.msg(f"File renamed: {new_filepath}")
-
-    return new_filepath or file_filepath
-
-
-def dequeue(item: dict):
+def dequeue(item: dict) -> bool:
     with queue_condition:
         for i, q_item in enumerate(queue):
             if q_item == item:
                 del queue[i]
                 save_queue()
 
-                return {"status": "removed"}
+                return True
+        return False
 
-        return {"error": "Item not found in queue"}
 
-
-def close_item(item, message, filename):
+def close_item(
+    item: dict, message: str, filename: str | None, stack_offset: int = 2
+) -> dict | None:
     if DEBUG_MODE:
         breakpoint()
-    _log.msg(message)
-    save_item(item, filename)
+    _log.msg(message, stack_offset)
+    if filename:
+        save_item(item, filename)
     delete_item_file("current.json")
 
     return None
 
 
-def match_and_check(item):
+def diagnose_show_score(item: dict) -> dict | None:
+    # ...? resolution: manual intervention queue
+    breakpoint()
+
+    return close_item(
+        item,
+        f"Series match score not high enough. ({item["title_result"]["score"]} < 70)  Aborting.",
+        "series_score.json",
+    )
+
+
+def diagnose_episode_score(item: dict) -> dict | None:
+    from aging_queue_manager import aging_enqueue
+    from util import get_new_ripeness
+
+    # airdate; issue: too new, Sonarr metadata not updated?
+    #          resolution: refresh Sonarr series data, requeue?
+    # tokens too generic? resolution: manual intervention queue
+    _log.msg(
+        f"Episode match score not high enough. ({item["episode_result"]["score"]} < 70)\n\tDiagnosing.",
+        2,
+    )
+
+    ripeness = get_new_ripeness(item)
+    breakpoint()
+
+    if ripeness < AGING_RIPENESS_PER_DAY * 3:
+        aging_enqueue(item)
+        return close_item(item, f"Ripeness {ripeness}: Requeue to aging queue", None)
+
+    else:
+        _log.msg(f"Ripeness {ripeness}: Item should be old enough for data")
+
+    return close_item(
+        item, "Moving to manual intervention queue.", "manual_intervention.json"
+    )
+
+
+def match_and_check(item: dict) -> dict | None:
+    from matcher import (match_title_to_sonarr_episode,
+                         match_title_to_sonarr_show)
+    from sonarr_api import (get_all_series, get_episode_data_for_shows,
+                            is_episode_file, is_monitored_episode,
+                            is_monitored_series)
+
     _log.msg(
         f"Processing item:\n"
         f"\t{_log._GREEN}creator:{_log._RESET} {item.get('creator', '')}"
@@ -216,11 +146,7 @@ def match_and_check(item):
     )
 
     if title_result["score"] < 70:
-        return close_item(
-            item,
-            f"Series match score not high enough. ({title_result['score']} < 70)  Aborting.",
-            "series_score.json",
-        )
+        return diagnose_show_score(item)
 
     if HONOR_UNMON_SERIES:
         if not is_monitored_series(title_result["matched_id"]):
@@ -231,7 +157,7 @@ def match_and_check(item):
             )
 
     show_data = get_episode_data_for_shows(
-        title_result.get("matched_show"), title_result.get("matched_id")
+        title_result.get("matched_show", ""), title_result.get("matched_id", 0)
     )
     episode_result = match_title_to_sonarr_episode(
         main_title, item.get("datecode", -1), show_data
@@ -248,17 +174,13 @@ def match_and_check(item):
     )
 
     if episode_result["score"] < 70:
-        return close_item(
-            item,
-            f"Episode match score not high enough. ({episode_result['score']} < 70)  Aborting.",
-            "episode_score.json",
-        )
+        return diagnose_episode_score(item)
 
     if HONOR_UNMON_EPS:
         if not is_monitored_episode(
-            title_result.get("matched_id"),
-            episode_result.get("season"),
-            episode_result.get("episode"),
+            title_result.get("matched_id", 0),
+            episode_result.get("season", 0),
+            episode_result.get("episode", 0),
         ):
             return close_item(
                 item,
@@ -268,9 +190,9 @@ def match_and_check(item):
 
     if not OVERWRITE_EPS:
         if is_episode_file(
-            title_result.get("matched_id"),
-            episode_result.get("season"),
-            episode_result.get("episode"),
+            title_result.get("matched_id", 0),
+            episode_result.get("season", 0),
+            episode_result.get("episode", 0),
         ):
             return close_item(
                 item,
@@ -281,12 +203,16 @@ def match_and_check(item):
     return item
 
 
-def download_item(item):
-    download_filename = download_video(item.get("url"), WAI_OUT_TEMP or WAI_OUT_PATH)
+def download_item(item: dict) -> dict | None:
+    from ytdlp_interface import download_video
+
+    download_filename = download_video(
+        item.get("url", ""), WAI_OUT_TEMP or WAI_OUT_PATH
+    )
     item["download_filename"] = download_filename
 
     if not download_filename:
-        item = close_item(
+        _ = close_item(
             item,
             "No file at download location. Aborting thread. (API will still function.)",
             "download_fail.json",
@@ -298,8 +224,10 @@ def download_item(item):
     return item
 
 
-def rename_and_move_item(item):
-    tag_filepath = tag_filename(item.get("download_filename"))
+def rename_and_move_item(item: dict) -> dict | None:
+    from util import tag_filename
+
+    tag_filepath = tag_filename(item.get("download_filename", ""))
     file_name = os.path.basename(tag_filepath)
 
     if WAI_OUT_TEMP:  # NOT WORKING
@@ -312,7 +240,9 @@ def rename_and_move_item(item):
     return item
 
 
-def import_item(item):
+def import_item(item: dict) -> dict | None:
+    from sonarr_api import import_downloaded_episode
+
     import_result = import_downloaded_episode(
         item["title_result"].get("matched_id"),
         item["episode_result"].get("season"),
@@ -326,32 +256,50 @@ def import_item(item):
     return item
 
 
-def process_item(item):
+def process_item(item: dict | None) -> tuple[bool, dict | None]:
+    if not item:
+        return False, None
+
     item = match_and_check(item)
 
     if not item:
-        return False
+        return False, None
 
     if DEBUG_MODE:
         breakpoint()
 
     item = download_item(item)
 
+    if not item:
+        return False, None
+
     item = rename_and_move_item(item)
+
+    if not item:
+        return False, None
 
     item = import_item(item)
 
+    if not item:
+        return False, None
+
     item = close_item(
         item,
-        f"Item Sonarr Import result: {item.get("import_result").get('status')}",
+        f"Item Sonarr Import result: {item.get("import_result", {}).get('status', "")}",
         "pass.json",
     )
 
-    return True
+    return True, item
 
 
 def process_queue(stop_event: threading.Event):
-    item = load_item("current.json")
+    global item
+    global queue
+
+    if item is None:
+        item = load_item("current.json")
+    if queue == []:
+        load_queue()
 
     while not stop_event.is_set():
         with queue_condition:
@@ -371,9 +319,7 @@ def process_queue(stop_event: threading.Event):
                 save_queue()
 
         if item:
-            wait_before_loop = process_item(item)
-
-            item = None
+            wait_before_loop, item = process_item(item)
 
             if not wait_before_loop:
                 continue

@@ -2,12 +2,12 @@
 
 import re
 from collections import Counter
-from datetime import datetime
 from typing import Dict, List, Tuple
 
-from dateutil import parser as dateparser
 from rapidfuzz import fuzz
 from rapidfuzz import utils as fuzzutils
+from sonarr_api import is_monitored_episode
+from util import date_distance_days
 
 
 def extract_episode_hint(title: str) -> Tuple[int, int]:
@@ -55,21 +55,6 @@ def compute_weighted_overlap(
             overlap_weight += weight
 
     return overlap_weight / total_weight if total_weight > 0 else 0
-
-
-def parse_date(date_input) -> datetime:
-    try:
-        return dateparser.parse(str(date_input), fuzzy=True)
-    except (ValueError, TypeError):
-        return None
-
-
-def date_distance_days(date1_input, date2_input) -> int:
-    date1 = parse_date(date1_input)
-    date2 = parse_date(date2_input)
-    if date1 is None or date2 is None:
-        return -1
-    return abs((date1.date() - date2.date()).days)
 
 
 def score_candidate(
@@ -122,7 +107,7 @@ def clean_text(text: str) -> str:
     return re.sub(r"[^a-zA-Z0-9\s]", "", text).lower()
 
 
-def clean_sonarr_data(sonarr_data):
+def clean_sonarr_data(sonarr_data: list[dict]) -> list[dict]:
     return [
         {
             **entry,
@@ -156,7 +141,7 @@ def match_title_to_sonarr_episode(
         # Date distance bonus
         episode_date = candidate.get("air_date")
         if episode_date != 0:
-            date_gap = date_distance_days(airdate, episode_date)
+            date_gap = date_distance_days(airdate, str(episode_date))
             if date_gap >= 0:
                 # Closer dates = higher score boost (e.g. linear penalty)
                 date_score_bonus = max(0, 50.0 - (date_gap * 25))
@@ -164,6 +149,12 @@ def match_title_to_sonarr_episode(
                 reason += f"; date_gap={date_gap}d (bonus={date_score_bonus:.2f})"
             else:
                 reason += "; no airdate match"
+
+        # Monitored bonus
+        if score > 70 and is_monitored_episode(
+            candidate["series_id"], candidate["season"], candidate["episode"]
+        ):
+            score += 1
 
         if score > best_score:
             best_match = candidate

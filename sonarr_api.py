@@ -6,13 +6,8 @@ import logger as _log
 import requests
 
 # Load configuration from environment variables
-SONARR_URL = os.getenv("SONARR_URL")
-API_KEY = os.getenv("SONARR_API")
-
-if not SONARR_URL or not API_KEY:
-    raise RuntimeError(
-        "Both SONARR_URL and SONARR_API environment variables must be set."
-    )
+SONARR_URL = os.getenv("SONARR_URL") or "http://localhost:8989"
+API_KEY = os.getenv("SONARR_API") or "DEADBEEF1E5"
 
 HEADERS = {"X-Api-Key": API_KEY}
 
@@ -46,15 +41,40 @@ def validate_sonarr_config() -> bool:
         return False
 
 
-def get_all_series():
-    """Returns a list of monitored show titles from Sonarr."""
+def refresh_series(series_id: int) -> dict:
+    """
+    Triggers a series refresh in Sonarr for the specified series ID.
+
+    Args:
+        series_id (int): The ID of the series to refresh.
+
+    Returns:
+        dict: The response from the Sonarr API.
+
+    Raises:
+        HTTPError: If the API request fails.
+    """
+    url = f"{SONARR_URL.rstrip('/')}/api/v3/command"
+    payload = {"name": "RefreshSeries", "seriesId": series_id}
+
+    try:
+        response = requests.post(url, headers=HEADERS, json=payload)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        _log.msg(f"Failed to refresh series {series_id}: {e}")
+        raise
+
+
+def get_all_series() -> list[tuple[str, int]]:
+    """Returns a list of registered show titles from Sonarr."""
     response = requests.get(f"{SONARR_URL.rstrip('/')}/api/v3/series", headers=HEADERS)
     response.raise_for_status()
     series_list = response.json()
     return [(s["title"], s["id"]) for s in series_list]
 
 
-def get_monitored_series():
+def get_monitored_series() -> list:
     """Returns a list of monitored show titles from Sonarr."""
     response = requests.get(f"{SONARR_URL.rstrip('/')}/api/v3/series", headers=HEADERS)
     response.raise_for_status()
@@ -62,15 +82,15 @@ def get_monitored_series():
     return [s["title"] for s in series_list if s.get("monitored", False)]
 
 
-def is_monitored_series(series_id):
-    """Returns a list of monitored show titles from Sonarr."""
+def is_monitored_series(series_id: int) -> bool:
+    """Returns if a series_id from Sonarr is monitored."""
     response = requests.get(f"{SONARR_URL.rstrip('/')}/api/v3/series", headers=HEADERS)
     response.raise_for_status()
     series_list = response.json()
     return any(s["id"] == series_id and s.get("monitored", True) for s in series_list)
 
 
-def search_local_series(query):
+def search_local_series(query: str) -> list[dict]:
     """Search for a show by title from locally added series only."""
     response = requests.get(f"{SONARR_URL}/api/v3/series", headers=HEADERS)
     response.raise_for_status()
@@ -80,7 +100,7 @@ def search_local_series(query):
     return [s for s in series_list if query_lower in s["title"].lower()]
 
 
-def search_series(query):
+def search_series(query: str) -> list[dict]:
     """Search for a show by title and return results."""
     response = requests.get(
         f"{SONARR_URL}/api/v3/series/lookup", params={"term": query}, headers=HEADERS
@@ -89,7 +109,7 @@ def search_series(query):
     return response.json()
 
 
-def get_episodes(series_id):
+def get_episodes(series_id: int) -> list[dict]:
     """Retrieve episodes for a given series ID."""
     response = requests.get(
         f"{SONARR_URL}/api/v3/episode", params={"seriesId": series_id}, headers=HEADERS
@@ -98,7 +118,9 @@ def get_episodes(series_id):
     return response.json()
 
 
-def get_episode_data_for_shows(show_title, show_ids):
+def get_episode_data_for_shows(
+    show_title: str, show_ids: int | list[int]
+) -> list[dict]:
     """
     Accepts a list of show titles, queries Sonarr for their episodes,
     and returns structured episode data.
@@ -119,6 +141,7 @@ def get_episode_data_for_shows(show_title, show_ids):
             sonarr_data.append(
                 {
                     "series": show_title,
+                    "series_id": show_id,
                     "season": ep["seasonNumber"],
                     "episode": ep["episodeNumber"],
                     "episode_id": ep["id"],
@@ -130,7 +153,7 @@ def get_episode_data_for_shows(show_title, show_ids):
     return sonarr_data
 
 
-def get_file_quality_and_language(file_path):
+def get_file_quality_and_language(file_path: str) -> tuple[dict, dict]:
     """
     Fetches quality and language info for a specific file using Sonarr's ManualImport endpoint.
 
@@ -164,7 +187,7 @@ def get_file_quality_and_language(file_path):
     raise ValueError(f"No matching file found for path: {file_path}")
 
 
-def get_sonarr_episode(series_id, season_number, episode_number):
+def get_sonarr_episode(series_id: int, season_number: int, episode_number: int) -> dict:
     episodes = get_episodes(series_id)
     matching_ep = next(
         (
@@ -173,25 +196,31 @@ def get_sonarr_episode(series_id, season_number, episode_number):
             if ep["seasonNumber"] == season_number
             and ep["episodeNumber"] == episode_number
         ),
-        None,
+        {},
     )
 
     return matching_ep
 
 
-def is_monitored_episode(series_id, season_number, episode_number):
+def is_monitored_episode(
+    series_id: int, season_number: int, episode_number: int
+) -> bool:
     sonarr_episode = get_sonarr_episode(series_id, season_number, episode_number)
     return sonarr_episode.get("monitored", True)
 
 
-def is_episode_file(series_id, season_number, episode_number):
+def is_episode_file(series_id: int, season_number: int, episode_number: int) -> bool:
     sonarr_episode = get_sonarr_episode(series_id, season_number, episode_number)
     return not sonarr_episode.get("episodeFileId", 0) == 0
 
 
 def import_downloaded_episode(
-    series_id, season_number, episode_number, file_name, sonarr_folder
-):
+    series_id: int,
+    season_number: int,
+    episode_number: int,
+    file_name: str,
+    sonarr_folder: str,
+) -> dict | None:
     """
     Uses Sonarr's ManualImport API to import a downloaded episode.
 

@@ -1,5 +1,6 @@
 # server.py
 
+import logger as _log
 from fastapi import FastAPI, Request
 from nicegui import app as nicegui_app
 from nicegui import ui
@@ -16,6 +17,10 @@ def handle_reprocess(from_file: str, item: str):
 
     item = ast.literal_eval(item)
 
+    if not isinstance(item, dict):
+        _log.msg("Error: item received is not a valid item")
+        return
+
     enqueue(item)
     remove_json_item(from_file, item)
     # add_json_item("queue", item)
@@ -27,12 +32,17 @@ def handle_remove(from_file: str, item: str):
     from processor import remove_json_item
 
     item = ast.literal_eval(item)
+
+    if not isinstance(item, dict):
+        _log.msg("Error: item received is not a valid item")
+        return
+
     remove_json_item(from_file, item)
 
 
 @ui.page("/")
 def main_page():
-    from processor import get_json_item_filtered
+    from processor import get_json_items_filtered
 
     datafiles = [
         "all_processed",
@@ -62,7 +72,7 @@ def main_page():
                 def refresh_tab(datafile):
                     container = tab_containers[datafile]
                     container.clear()
-                    result = get_json_item_filtered(from_file=datafile)
+                    result = get_json_items_filtered(from_file=datafile)
                     if result:
                         for item in result:
                             ui.separator()
@@ -107,10 +117,10 @@ async def webhook(request: Request):
 
 
 @fastapi.get("/get_item")
-async def get_item(datafrom: str, name: str = None, value: str = None):
-    from processor import get_json_item_filtered
+async def get_item(datafrom: str, name: str | None = None, value: str | None = None):
+    from processor import get_json_items_filtered
 
-    result = get_json_item_filtered(datafrom, name, value)
+    result = get_json_items_filtered(datafrom, name, value)
     return result
 
 
@@ -120,12 +130,4 @@ async def dequeue_item(request: Request):
     from processor import dequeue_item
 
     result = dequeue_item(item)
-    return result
-
-
-@fastapi.post("/remove_item")
-async def remove_item(from_file: str, name: str = None, value: str = None):
-    from processor import remove_json_item
-
-    result = remove_json_item(from_file, name, value)
     return result

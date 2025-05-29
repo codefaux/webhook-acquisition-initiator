@@ -26,7 +26,7 @@ def msg(message, stack_offset=1):
     frame = inspect.stack()[stack_offset]
     module = inspect.getmodule(frame[0])
     caller_name = frame.function
-    caller_file = module.__file__.split("/")[-1] if module else "Unknown"
+    caller_file = (module.__file__ or "").split("/")[-1] if module else "Unknown"
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     stack_prepend = (
         f"{_BLUE}[{_YELLOW}{caller_file}{_BLUE}:{_GREEN}{caller_name}{_BLUE}]{_RESET} "

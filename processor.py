@@ -7,7 +7,7 @@ import re
 
 from queue_manager import dequeue
 
-DATA_DIR = os.getenv("DATA_DIR")
+DATA_DIR = os.getenv("DATA_DIR") or "./data"
 
 
 def dequeue_item(item: dict):
@@ -32,33 +32,35 @@ def process_message(raw_text: str) -> dict:
     }
 
 
-def get_json_item(from_file: str) -> dict:
+def get_json_items(from_file: str) -> list[dict]:
     if not from_file.endswith(".json"):
         from_file += ".json"
 
     file_path = os.path.join(DATA_DIR, from_file.lower())
 
     if not os.path.isfile(file_path):
-        return {"error": "File not found"}
+        return [{"error": "File not found"}]
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
             if not isinstance(data, list):
-                return {"error": "Expected a list of JSON objects"}
+                return [{"error": "Expected a list of JSON objects"}]
     except json.JSONDecodeError:
-        return {"error": "Invalid JSON format"}
+        return [{"error": "Invalid JSON format"}]
 
     return data
 
 
-def get_json_item_filtered(from_file: str, name: str = None, value: str = None) -> dict:
+def get_json_items_filtered(
+    from_file: str, name: str | None = None, value: str | None = None
+) -> list[dict]:
     if name is None and value is None:
-        return get_json_item(from_file)
+        return get_json_items(from_file)
 
     filtered = [
         entry
-        for entry in get_json_item(from_file)
+        for entry in get_json_items(from_file)
         if isinstance(entry, dict)
         and (
             (name and value and str(entry.get(name)) == value)
