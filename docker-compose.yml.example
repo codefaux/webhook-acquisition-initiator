@@ -18,6 +18,8 @@ services:
       OVERWRITE_EPS: "0"
       QUEUE_INTERVAL: "15"
       FLIP_FLOP_QUEUE: "1"
+      AGING_RIPENESS_PER_DAY: "4"
+      AGING_QUEUE_INTERVAL: "5"
     volumes:
       - ./data:/data
       - ./output:/output

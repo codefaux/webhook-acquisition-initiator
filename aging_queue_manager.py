@@ -26,7 +26,7 @@ FLIP_FLOP_QUEUE = int(os.getenv("FLIP_FLOP_QUEUE", 0)) == 1
 DEBUG_MODE = os.getenv("DEBUG_MODE", 0) != 0
 
 AGING_QUEUE_FILE = os.path.join(DATA_DIR, "aging_queue.json")
-AGING_QUEUE_INTERVAL = int(os.getenv("AGING_QUEUE_INTERVAL", 1))
+AGING_QUEUE_INTERVAL = int(os.getenv("AGING_QUEUE_INTERVAL", 5))
 aging_queue_lock = threading.Lock()
 aging_queue_condition = threading.Condition(lock=aging_queue_lock)
 aging_queue = []
