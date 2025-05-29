@@ -14,7 +14,7 @@ RUN curl -L -o ffmpeg-release.tar.xz https://johnvansickle.com/ffmpeg/releases/f
     rm -rf ffmpeg-release.tar.xz ffmpeg-*-amd64-static
 
 # Copy application code
-COPY requirements.txt main.py matcher.py processor.py queue_manager.py server.py sonarr_api.py ytdlp_interface.py logger.py /app/
+COPY requirements.txt aging_queue_manager.py logger.py main.py matcher.py processor.py queue_manager.py server.py sonarr_api.py util.py ytdlp_interface.py /app/
 
 # Install Python packages
 WORKDIR /app

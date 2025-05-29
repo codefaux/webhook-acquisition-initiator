@@ -6,6 +6,7 @@ on:
     branches-ignore:
       - main
     paths:
+      - 'aging_queue_manager.py'
       - 'Dockerfile'
       - 'logger.py'
       - 'main.py'
