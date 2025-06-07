@@ -81,7 +81,8 @@ def close_item(
 
 def diagnose_show_score(item: dict) -> dict | None:
     # ...? resolution: manual intervention queue
-    breakpoint()
+    if DEBUG_MODE:
+        breakpoint()
 
     return close_item(
         item,
@@ -103,7 +104,8 @@ def diagnose_episode_score(item: dict) -> dict | None:
     )
 
     ripeness = get_new_ripeness(item)
-    breakpoint()
+    if DEBUG_MODE:
+        breakpoint()
 
     if ripeness < AGING_RIPENESS_PER_DAY * 3:
         aging_enqueue(item)
