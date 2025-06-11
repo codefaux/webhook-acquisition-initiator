@@ -146,7 +146,8 @@ def get_episode_data_for_shows(
                     "episode": ep["episodeNumber"],
                     "episode_id": ep["id"],
                     "title": ep["title"],
-                    "air_date": ep.get("airDate", -1),
+                    "air_date": ep.get("airDate", ""),
+                    "air_date_utc": ep.get("airDateUtc", ""),
                 }
             )
 
