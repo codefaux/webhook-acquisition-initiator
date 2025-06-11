@@ -29,6 +29,38 @@ def date_distance_days(date1_input: str | date, date2_input: str | date) -> int:
     return abs((date1.date() - date2.date()).days)
 
 
+def time_distance_score(
+    datetime1_input: str | datetime, datetime2_input: str | datetime
+) -> int:
+    max_hours_limit = 72
+    max_score = 95
+    decay_power = 2.5
+
+    datetime1 = (
+        parse_date(datetime1_input)
+        if isinstance(datetime1_input, str)
+        else datetime1_input
+    )
+    datetime2 = (
+        parse_date(datetime2_input)
+        if isinstance(datetime2_input, str)
+        else datetime2_input
+    )
+
+    if datetime1 is None or datetime2 is None:
+        return -1
+
+    distance_hours = abs((datetime1 - datetime2).total_seconds()) / 3600
+
+    if distance_hours > max_hours_limit:
+        return 0
+
+    normalized = distance_hours / max_hours_limit
+    score = (1 - normalized**decay_power) * max_score
+
+    return int(score)
+
+
 def get_next_aging_time() -> int:
     return int(
         (datetime.now() + timedelta(hours=(24 / AGING_RIPENESS_PER_DAY))).timestamp()
