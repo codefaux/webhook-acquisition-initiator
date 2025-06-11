@@ -101,8 +101,8 @@ def main_page():
                     make_tab_panel(datafile)
 
 
-@fastapi.post("/webhook")
-async def webhook(request: Request):
+@fastapi.post("/enqueue")
+async def enqueue(request: Request):
     from processor import process_message
     from queue_manager import enqueue
 
@@ -112,6 +112,10 @@ async def webhook(request: Request):
         return {"error": "Missing 'message' field"}
 
     processed = process_message(text)
+
+    if processed == "":
+        return {"error": "Unable to process message"}
+
     enqueue(processed)
     return {"status": "queued"}
 
