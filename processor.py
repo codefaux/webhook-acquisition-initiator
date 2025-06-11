@@ -16,7 +16,9 @@ def dequeue_item(item: dict):
 
 def process_message(raw_text: str) -> dict:
     # Pattern to match the format: CREATOR :: DATECODE :: TITLE\n\nURL
-    pattern = re.compile(r"^(.*?)\s*::\s*(\d{8})\s*::\s*(.*?)\s*\n+(\S+)", re.DOTALL)
+    pattern = re.compile(
+        r"^(.*?)\s*::\s*([\d\-:TZ]{20})\s*::\s*(.*?)\s*\n+(\S+)", re.DOTALL
+    )
 
     match = pattern.match(raw_text.strip())
     if not match:
