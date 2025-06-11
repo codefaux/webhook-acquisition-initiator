@@ -23,7 +23,8 @@ HONOR_UNMON_SERIES = int(os.getenv("HONOR_UNMON_SERIES", 1)) == 1
 HONOR_UNMON_EPS = int(os.getenv("HONOR_UNMON_EPS", 1)) == 1
 OVERWRITE_EPS = int(os.getenv("OVERWRITE_EPS", 0)) == 1
 FLIP_FLOP_QUEUE = int(os.getenv("FLIP_FLOP_QUEUE", 0)) == 1
-DEBUG_MODE = os.getenv("DEBUG_MODE", 0) != 0
+DEBUG_PRINT = os.getenv("DEBUG_PRINT", 0) != 0
+DEBUG_BREAK = os.getenv("DEBUG_BREAK", 0) != 0
 
 AGING_QUEUE_FILE = os.path.join(DATA_DIR, "aging_queue.json")
 AGING_QUEUE_INTERVAL = int(os.getenv("AGING_QUEUE_INTERVAL", 5))
@@ -72,7 +73,7 @@ def aging_enqueue(aging_item: dict) -> None:
 def close_aging_item(
     aging_item: dict, message: str, filename: str | None, stack_offset: int = 2
 ) -> None:
-    # if DEBUG_MODE:
+    # if DEBUG_BREAK:
     #     breakpoint()
     _log.msg(message, stack_offset)
     if filename:
@@ -177,7 +178,7 @@ def process_aging_queue(stop_event: threading.Event):
                 ]
                 if eligible_aging_items:
                     # Sort by next_aging to pick the most overdue item
-                    if DEBUG_MODE:
+                    if DEBUG_PRINT:
                         _log.msg("Sorting eligible items..")
                     eligible_aging_items.sort(
                         key=lambda item: item.get("next_aging", 0)
@@ -186,7 +187,7 @@ def process_aging_queue(stop_event: threading.Event):
                     aging_queue.remove(aging_item)
                     save_item(aging_item, "current_aging.json", True)
                     save_aging_queue()
-                elif DEBUG_MODE:
+                elif DEBUG_PRINT:
                     _log.msg("Queue present but no eligible items.")
 
         if aging_item:
@@ -199,7 +200,7 @@ def process_aging_queue(stop_event: threading.Event):
             if not wait_before_loop:
                 continue
 
-        if DEBUG_MODE:
+        if DEBUG_PRINT:
             _log.msg(f"Aging queue thread sleeping for {AGING_QUEUE_INTERVAL} min.")
         with aging_queue_condition:
             aging_queue_condition.wait(timeout=AGING_QUEUE_INTERVAL * 60)

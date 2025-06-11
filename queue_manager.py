@@ -19,7 +19,8 @@ HONOR_UNMON_SERIES = int(os.getenv("HONOR_UNMON_SERIES", 1)) == 1
 HONOR_UNMON_EPS = int(os.getenv("HONOR_UNMON_EPS", 1)) == 1
 OVERWRITE_EPS = int(os.getenv("OVERWRITE_EPS", 0)) == 1
 FLIP_FLOP_QUEUE = int(os.getenv("FLIP_FLOP_QUEUE", 0)) == 1
-DEBUG_MODE = os.getenv("DEBUG_MODE", 0) != 0
+DEBUG_PRINT = os.getenv("DEBUG_PRINT", 0) != 0
+DEBUG_BREAK = os.getenv("DEBUG_BREAK", 0) != 0
 
 QUEUE_FILE = os.path.join(DATA_DIR, "queue.json")
 QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
@@ -69,7 +70,7 @@ def dequeue(item: dict) -> bool:
 def close_item(
     item: dict, message: str, filename: str | None, stack_offset: int = 2
 ) -> dict | None:
-    if DEBUG_MODE:
+    if DEBUG_BREAK:
         breakpoint()
     _log.msg(message, stack_offset)
     if filename:
@@ -81,7 +82,7 @@ def close_item(
 
 def diagnose_show_score(item: dict) -> dict | None:
     # ...? resolution: manual intervention queue
-    if DEBUG_MODE:
+    if DEBUG_BREAK:
         breakpoint()
 
     return close_item(
@@ -104,7 +105,7 @@ def diagnose_episode_score(item: dict) -> dict | None:
     )
 
     ripeness = get_new_ripeness(item)
-    if DEBUG_MODE:
+    if DEBUG_BREAK:
         breakpoint()
 
     if ripeness < AGING_RIPENESS_PER_DAY * 3:
@@ -267,7 +268,7 @@ def process_item(item: dict | None) -> tuple[bool, dict | None]:
     if not item:
         return False, None
 
-    if DEBUG_MODE:
+    if DEBUG_BREAK:
         breakpoint()
 
     item = download_item(item)
