@@ -87,13 +87,13 @@ def score_candidate(
 
     # Penalize missed tokens (input expected but not found)
     missed_tokens = input_tokens - candidate_tokens
-    missed_penalty = len(missed_tokens) * 5
+    missed_penalty = len(missed_tokens) * 3
     score -= missed_penalty
     reasons.append(f"missed tokens: {len(missed_tokens)} (-{missed_penalty})")
 
     # Penalize extra tokens (unexpected tokens in candidate)
     extra_tokens = candidate_tokens - input_tokens
-    extra_penalty = len(extra_tokens) * 2.5  # Lighter penalty per extra token
+    extra_penalty = len(extra_tokens) * 2
     score -= int(extra_penalty)
     reasons.append(f"extra tokens: {len(extra_tokens)} (-{int(extra_penalty)})")
 
