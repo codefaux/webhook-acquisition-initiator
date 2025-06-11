@@ -135,7 +135,7 @@ def handle_downloading(status: dict):
         midstr = ""
         if last_print_time > 5:
             speed = format_bytes(status.get("speed", 0) or 0)
-            eta = status.get("eta", 0) or 0
+            eta = int(status.get("eta", 0)) or 0
             midstr = f" @ {speed}/s, ETA: {eta}s{_log._RESET}"
 
         total_bytes = (
