@@ -6,5 +6,5 @@ rapidfuzz
 python-dateutil
 requests
 pathlib
-yt-dlp
+yt-dlp>=2025.4.30
 langid
