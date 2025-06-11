@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple
 from rapidfuzz import fuzz
 from rapidfuzz import utils as fuzzutils
 from sonarr_api import is_monitored_episode
-from util import date_distance_days
+from util import date_distance_days, time_distance_score
 
 
 def extract_episode_hint(title: str) -> Tuple[int, int]:
@@ -139,16 +139,16 @@ def match_title_to_sonarr_episode(
         )
 
         # Date distance bonus
-        episode_date = candidate.get("air_date")
-        if episode_date != 0:
-            date_gap = date_distance_days(airdate, str(episode_date))
-            if date_gap >= 0:
-                # Closer dates = higher score boost (e.g. linear penalty)
-                date_score_bonus = max(0, 50.0 - (date_gap * 25))
+        episode_date = candidate.get("air_date", "")
+        episode_date_utc = candidate.get("air_date_utc", "")
+        if episode_date != "":
+            date_score_bonus = time_distance_score(airdate, episode_date_utc)
+            if date_score_bonus > 0:
+                date_gap = date_distance_days(airdate, episode_date_utc)
                 score += date_score_bonus
                 reason += f"; date_gap={date_gap}d (bonus={date_score_bonus:.2f})"
             else:
-                reason += "; no airdate match"
+                reason += "; no airdate bonus"
 
         # Monitored bonus
         if score > 70 and is_monitored_episode(
