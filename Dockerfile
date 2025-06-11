@@ -1,17 +1,4 @@
-FROM python:3.12-slim
-
-ENV PYTHONUNBUFFERED=1
-
-# Install essential tools
-RUN apt-get update && apt-get install -y curl ca-certificates xz-utils && rm -rf /var/lib/apt/lists/*
-
-# Install ffmpeg static from johnvansickle.com
-RUN curl -L -o ffmpeg-release.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && \
-    tar -xvf ffmpeg-release.tar.xz && \
-    cd ffmpeg-*-amd64-static && \
-    mv ffmpeg ffprobe /usr/local/bin/ && \
-    cd .. && \
-    rm -rf ffmpeg-release.tar.xz ffmpeg-*-amd64-static
+FROM ghcr.io/codefaux/ytdlp-python-base:latest
 
 # Copy application code
 COPY requirements.txt aging_queue_manager.py logger.py main.py matcher.py processor.py queue_manager.py server.py sonarr_api.py util.py ytdlp_interface.py /app/
