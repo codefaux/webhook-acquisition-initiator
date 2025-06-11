@@ -149,7 +149,7 @@ def handle_downloading(status: dict):
 
         # Update global state
         last_print_time = current_time
-        last_print_percent = int(percent / 25) * 25
+        last_print_percent = int(percent) + 25
 
 
 def handle_finished(status: dict):
