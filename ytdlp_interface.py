@@ -109,19 +109,15 @@ def download_video(video_url: str, target_folder: str) -> str | None:
         f", {_log._YELLOW}yt-dlp.conf {_log._GREEN if using_ytdlpconf else _log._RED}{using_ytdlpconf}{_log._RESET}"
     )
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(video_url, download=True)
-            output_file = ydl.prepare_filename(info_dict)
-            if not os.path.isfile(output_file):
-                _log.msg(
-                    f"{_log._RED}Download failed or file not found: {_log._RESET} {output_file}"
-                )
-                return None
-            return output_file
-    except Exception as e:
-        _log.msg(f"{_log._RED}yt-dlp error during download:{_log._RESET} {str(e)}")
-        return None
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info_dict = ydl.extract_info(video_url, download=True)
+        output_file = ydl.prepare_filename(info_dict)
+        if not os.path.isfile(output_file):
+            _log.msg(
+                f"{_log._RED}Download failed or file not found: {_log._RESET} {output_file}"
+            )
+            return None
+        return output_file
 
 
 def handle_downloading(status: dict):
