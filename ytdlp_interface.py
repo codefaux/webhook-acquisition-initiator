@@ -85,7 +85,7 @@ def download_video(video_url: str, target_folder: str) -> str | None:
     ensure_dir(target_folder)
 
     ydl_opts = {
-        "progress_hooks": [download_progress_hook],
+        "progress_hooks": [ytdlp_progress_hook],
         "noplaylist": True,
         "no_warnings": True,
         "ignoreerrors": True,
@@ -131,7 +131,7 @@ def handle_downloading(status: dict):
         midstr = ""
         if last_print_time > 5:
             speed = format_bytes(status.get("speed", 0) or 0)
-            eta = int(status.get("eta", 0)) or 0
+            eta = int(status.get("eta", 1) or 1)
             midstr = f" @ {speed}/s, ETA: {eta}s{_log._RESET}"
 
         total_bytes = (
@@ -153,7 +153,7 @@ def handle_finished(status: dict):
     last_print_time = 0
     last_print_percent = 0
     total_bytes = format_bytes(status.get("total_bytes", 0) or 0)
-    elapsed = int(status.get("elapsed", 0) + 0.4999) or 0
+    elapsed = int(status.get("elapsed", 1) or 1)
     speed = format_bytes(status.get("speed", 0) or 0)
 
     _log.msg(
@@ -172,7 +172,7 @@ def handle_error(status: dict):
     )
 
 
-def download_progress_hook(status: dict):
+def ytdlp_progress_hook(status: dict):
     handlers = {
         "downloading": handle_downloading,
         "finished": handle_finished,
