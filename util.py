@@ -177,10 +177,18 @@ def tag_filename(file_filepath: str) -> str:
     file_tags = f".WEB-DL.{file_width}x{file_height}.{file_lang}-cfwai"
 
     file_path = Path(file_filepath)
+    file_datapath = Path(data_name)
+
     new_name = file_path.stem + file_tags + file_path.suffix
+    new_data = file_path.stem + file_tags + ".info.json"
+
     new_filepath = str(file_path.with_name(new_name))
+    new_datapath = str(file_datapath.with_name(new_data))
+
     file_path.rename(new_filepath)
+    file_datapath.rename(new_datapath)
 
     _log.msg(f"File renamed: {new_filepath}")
+    _log.msg(f"File renamed: {new_datapath}")
 
     return new_filepath or file_filepath
