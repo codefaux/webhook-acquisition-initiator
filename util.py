@@ -36,16 +36,8 @@ def time_distance_score(
     max_score = 95
     decay_power = 2.5
 
-    datetime1 = (
-        parse_date(datetime1_input)
-        if isinstance(datetime1_input, str)
-        else datetime1_input
-    )
-    datetime2 = (
-        parse_date(datetime2_input)
-        if isinstance(datetime2_input, str)
-        else datetime2_input
-    )
+    datetime1 = parse_date(datetime1_input)
+    datetime2 = parse_date(datetime2_input)
 
     if datetime1 is None or datetime2 is None:
         return -1
