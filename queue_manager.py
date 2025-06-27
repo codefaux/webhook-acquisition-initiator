@@ -256,7 +256,7 @@ def download_item(item: dict) -> dict | None:
     if not download_filename:
         _ = close_item(
             item,
-            "No file at download location. Aborting thread. (API will still function.)",
+            "No file at download location. Aborting main queue thread. (API will still function.)",
             "download_fail.json",
         )
         sys.exit(1)  # error condition
