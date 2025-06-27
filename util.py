@@ -33,8 +33,8 @@ def time_distance_score(
     datetime1_input: str | datetime, datetime2_input: str | datetime
 ) -> int:
     max_hours_limit = 72
-    max_score = 95
-    decay_power = 2.5
+    max_score = 80
+    decay_power = 2.4
 
     datetime1 = parse_date(datetime1_input)
     datetime2 = parse_date(datetime2_input)
