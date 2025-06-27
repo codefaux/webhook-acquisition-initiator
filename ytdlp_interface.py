@@ -87,8 +87,8 @@ def download_video(video_url: str, target_folder: str) -> str | None:
     ydl_opts = {
         "progress_hooks": [ytdlp_progress_hook],
         "noplaylist": True,
-        "no_warnings": True,
-        "ignoreerrors": True,
+        # "no_warnings": True,
+        # "ignoreerrors": True,
         "writeinfojson": True,
         "logger": YTDLQuietLogger(),
         "ratelimit": 5_000_000,
@@ -111,6 +111,10 @@ def download_video(video_url: str, target_folder: str) -> str | None:
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info_dict = ydl.extract_info(video_url, download=True)
+
+        if info_dict is None:
+            return ""
+
         output_file = ydl.prepare_filename(info_dict)
         if not os.path.isfile(output_file):
             _log.msg(
