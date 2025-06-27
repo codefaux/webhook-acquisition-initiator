@@ -67,12 +67,16 @@ def score_candidate(
     score = 0
     reasons = []
 
-    if season != -1 and episode != -1:
+    if season != -1 or episode != -1:
         if candidate["season"] == season and candidate["episode"] == episode:
-            score += 50
-            reasons.append("season/episode exact match")
+            score += 40
+            reasons.append("season+ep exact fit: 50")
+        elif candidate["season"] == season or candidate["episode"] == episode:
+            score += 20
+            reasons.append("season or ep matched: 25")
         else:
-            reasons.append("season/episode mismatch")
+            score -= 5
+            reasons.append("season/ep but unmatched: -5")
 
     input_tokens = set(fuzzutils.default_process(main_title).split())
     candidate_tokens = set(fuzzutils.default_process(candidate["title"]).split())
