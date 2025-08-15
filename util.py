@@ -32,12 +32,18 @@ def date_distance_days(date1_input: str | date, date2_input: str | date) -> int:
 def time_distance_score(
     datetime1_input: str | datetime, datetime2_input: str | datetime
 ) -> int:
+    from datetime import timezone
+
     max_hours_limit = 72
     max_score = 80
     decay_power = 2.4
 
     datetime1 = parse_date(datetime1_input)
     datetime2 = parse_date(datetime2_input)
+    if datetime1:
+        datetime1 = datetime1.replace(tzinfo=timezone.utc)
+    if datetime2:
+        datetime2 = datetime2.replace(tzinfo=timezone.utc)
 
     if datetime1 is None or datetime2 is None:
         return -1
