@@ -111,6 +111,8 @@ async def enqueue(request: Request):
     if not text:
         return {"error": "Missing 'message' field"}
 
+    _log.msg(f"Message contents: {text}")
+
     processed = process_message(text)
 
     if processed == "":
