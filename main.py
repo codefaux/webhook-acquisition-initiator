@@ -14,6 +14,7 @@ from sonarr_api import validate_sonarr_config
 
 # Load configuration from environment variables
 DATA_DIR = os.getenv("DATA_DIR") or "./data"
+CONF_DIR = os.getenv("CONF_DIR") or "./conf"
 SONARR_URL = os.getenv("SONARR_URL")
 API_KEY = os.getenv("SONARR_API")
 SONARR_IN_PATH = os.getenv("SONARR_IN_PATH")
@@ -54,6 +55,7 @@ def start_aging_queue_processor():
 
 if __name__ == "__main__":
     os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(CONF_DIR, exist_ok=True)
 
     retries = 0
     while retries < 5:
