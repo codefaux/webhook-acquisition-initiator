@@ -8,8 +8,10 @@ import yt_dlp.options
 DATA_DIR = os.getenv("DATA_DIR") or "./data"
 netrc_file = os.path.join(DATA_DIR, "netrc")
 ytdlpconf_file = os.path.join(DATA_DIR, "yt-dlp.conf")
+cookies_file = os.path.join(DATA_DIR, "cookies.txt")
 using_netrc = os.path.exists(netrc_file)
 using_ytdlpconf = os.path.exists(ytdlpconf_file)
+using_cookies = os.path.exists(cookies_file)
 
 last_print_time = 0
 last_print_percent = 0
@@ -87,6 +89,7 @@ def download_video(video_url: str, target_folder: str) -> str | None:
     ydl_opts = {
         "progress_hooks": [ytdlp_progress_hook],
         "noplaylist": True,
+        # "verbose": True,
         # "no_warnings": True,
         # "ignoreerrors": True,
         "writeinfojson": True,
@@ -100,13 +103,16 @@ def download_video(video_url: str, target_folder: str) -> str | None:
     if using_netrc:
         ydl_opts["usenetrc"] = True
         ydl_opts["netrc_location"] = netrc_file
+    if using_cookies:
+        ydl_opts["cookiefile"] = cookies_file
 
     ydl_opts["outtmpl"] = os.path.join(target_folder, "%(title)s.%(ext)s")
 
     _log.msg(
         f"{_log._GREEN}Starting download of '{video_url}' "
-        f"- {_log._YELLOW}netrc {_log._GREEN if using_netrc else _log._RED}{using_netrc}"
+        f"- {_log._YELLOW}netrc {_log._GREEN if using_netrc else _log._RED}{using_netrc}{_log._RESET}"
         f", {_log._YELLOW}yt-dlp.conf {_log._GREEN if using_ytdlpconf else _log._RED}{using_ytdlpconf}{_log._RESET}"
+        f", {_log._YELLOW}cookies {_log._GREEN if using_cookies else _log._RED}{using_cookies}{_log._RESET}"
     )
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
