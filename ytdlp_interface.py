@@ -5,10 +5,10 @@ import logger as _log
 import yt_dlp
 import yt_dlp.options
 
-DATA_DIR = os.getenv("DATA_DIR") or "./data"
-netrc_file = os.path.join(DATA_DIR, "netrc")
-ytdlpconf_file = os.path.join(DATA_DIR, "yt-dlp.conf")
-cookies_file = os.path.join(DATA_DIR, "cookies.txt")
+CONF_DIR = os.getenv("CONF_DIR") or "./conf"
+netrc_file = os.path.join(CONF_DIR, "netrc")
+ytdlpconf_file = os.path.join(CONF_DIR, "yt-dlp.conf")
+cookies_file = os.path.join(CONF_DIR, "cookies.txt")
 using_netrc = os.path.exists(netrc_file)
 using_ytdlpconf = os.path.exists(ytdlpconf_file)
 using_cookies = os.path.exists(cookies_file)
@@ -99,7 +99,7 @@ def download_video(video_url: str, target_folder: str) -> str | None:
     }
 
     if using_ytdlpconf:
-        ydl_opts.update(cli_to_api(["--config-locations", f"{DATA_DIR}"]))
+        ydl_opts.update(cli_to_api(["--config-locations", f"{CONF_DIR}"]))
     if using_netrc:
         ydl_opts["usenetrc"] = True
         ydl_opts["netrc_location"] = netrc_file
