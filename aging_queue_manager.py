@@ -8,11 +8,6 @@ from datetime import datetime
 import fauxlogger as _log
 from util import delete_item_file, load_item, save_item
 
-# from matcher import match_title_to_sonarr_episode
-# from queue_manager import enqueue
-# from cfsonarr import get_episode_data_for_shows, refresh_series
-# from util import delete_item_file, get_new_ripeness, load_item, save_item
-
 DATA_DIR = os.getenv("DATA_DIR") or "./data"
 
 AGING_RIPENESS_PER_DAY = int(os.getenv("AGING_RIPENESS_PER_DAY", 4))
@@ -85,7 +80,7 @@ def close_aging_item(
 
 def recheck_episode_match(item: dict) -> dict | None:
     from cfsonarr import get_episode_data_for_shows
-    from matcher import match_title_to_sonarr_episode
+    from cfsonarrmatcher import match_title_to_sonarr_episode
 
     show_data = get_episode_data_for_shows(
         item["title_result"].get("matched_show"), item["title_result"].get("matched_id")

@@ -9,7 +9,6 @@ on:
       - 'aging_queue_manager.py'
       - 'Dockerfile'
       - 'main.py'
-      - 'matcher.py'
       - 'processor.py'
       - 'queue_manager.py'
       - 'requirements.txt'

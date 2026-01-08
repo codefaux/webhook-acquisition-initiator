@@ -127,8 +127,8 @@ def match_and_check(item: dict) -> dict | None:
     from cfsonarr import (get_all_series, get_episode_data_for_shows,
                           is_episode_file, is_monitored_episode,
                           is_monitored_series)
-    from matcher import (match_title_to_sonarr_episode,
-                         match_title_to_sonarr_show)
+    from cfsonarrmatcher import (match_title_to_sonarr_episode,
+                                 match_title_to_sonarr_show)
 
     _log.msg(
         f"Processing item:\n"
