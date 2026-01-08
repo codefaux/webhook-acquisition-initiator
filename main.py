@@ -8,9 +8,9 @@ import time
 import fauxlogger as _log
 import uvicorn
 from aging_queue_manager import process_aging_queue
+from cfsonarr import validate_sonarr_config
 from queue_manager import process_queue
 from server import fastapi
-from sonarr_api import validate_sonarr_config
 
 # Load configuration from environment variables
 DATA_DIR = os.getenv("DATA_DIR") or "./data"

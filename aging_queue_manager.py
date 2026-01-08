@@ -10,7 +10,7 @@ from util import delete_item_file, load_item, save_item
 
 # from matcher import match_title_to_sonarr_episode
 # from queue_manager import enqueue
-# from sonarr_api import get_episode_data_for_shows, refresh_series
+# from cfsonarr import get_episode_data_for_shows, refresh_series
 # from util import delete_item_file, get_new_ripeness, load_item, save_item
 
 DATA_DIR = os.getenv("DATA_DIR") or "./data"
@@ -84,8 +84,8 @@ def close_aging_item(
 
 
 def recheck_episode_match(item: dict) -> dict | None:
+    from cfsonarr import get_episode_data_for_shows
     from matcher import match_title_to_sonarr_episode
-    from sonarr_api import get_episode_data_for_shows
 
     show_data = get_episode_data_for_shows(
         item["title_result"].get("matched_show"), item["title_result"].get("matched_id")
@@ -104,8 +104,8 @@ def recheck_episode_match(item: dict) -> dict | None:
 
 
 def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
+    from cfsonarr import refresh_series
     from queue_manager import enqueue
-    from sonarr_api import refresh_series
     from util import get_new_ripeness, get_next_aging_time
 
     if aging_item.get("ripeness", -1) == -1:

@@ -4,9 +4,9 @@ import re
 from collections import Counter
 from typing import Dict, List, Tuple
 
+from cfsonarr import is_monitored_episode
 from rapidfuzz import fuzz
 from rapidfuzz import utils as fuzzutils
-from sonarr_api import is_monitored_episode
 from util import date_distance_days, time_distance_score
 
 

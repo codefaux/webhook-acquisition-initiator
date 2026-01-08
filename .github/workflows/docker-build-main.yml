@@ -13,7 +13,6 @@ on:
       - 'queue_manager.py'
       - 'requirements.txt'
       - 'server.py'
-      - 'sonarr_api.py'
       - 'util.py'
       - 'ytdlp_interface.py'
       - '.github/workflows/docker-build-main.yml'

@@ -124,11 +124,11 @@ def diagnose_episode_score(item: dict) -> dict | None:
 
 
 def match_and_check(item: dict) -> dict | None:
+    from cfsonarr import (get_all_series, get_episode_data_for_shows,
+                          is_episode_file, is_monitored_episode,
+                          is_monitored_series)
     from matcher import (match_title_to_sonarr_episode,
                          match_title_to_sonarr_show)
-    from sonarr_api import (get_all_series, get_episode_data_for_shows,
-                            is_episode_file, is_monitored_episode,
-                            is_monitored_series)
 
     _log.msg(
         f"Processing item:\n"
@@ -295,7 +295,7 @@ def rename_and_move_item(item: dict) -> dict | None:
 
 
 def import_item(item: dict) -> dict | None:
-    from sonarr_api import import_downloaded_episode
+    from cfsonarr import import_downloaded_episode
 
     import_result = import_downloaded_episode(
         item["title_result"].get("matched_id"),
