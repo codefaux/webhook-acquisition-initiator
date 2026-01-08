@@ -59,25 +59,29 @@ if __name__ == "__main__":
     os.makedirs(CONF_DIR, exist_ok=True)
 
     if DEBUG_PRINT:
-        _log.msg(f"SONARR_API: {os.getenv('SONARR_API')} \n")
-        _log.msg(f"RADARR_API: {os.getenv('RADARR_API')} \n")
-        _log.msg(f"SONARR_URL: {os.getenv('SONARR_URL')} \n")
-        _log.msg(f"RADARR_URL: {os.getenv('RADARR_URL')} \n")
-        _log.msg(f"SONARR_IN_PATH: {os.getenv('SONARR_IN_PATH')} \n")
-        _log.msg(f"WAI_OUT_PATH: {os.getenv('WAI_OUT_PATH')} \n")
-        _log.msg(f"WAI_OUT_TEMP: {os.getenv('WAI_OUT_TEMP')} \n")
-        _log.msg(f"DATA_DIR: {os.getenv('DATA_DIR')} \n")
-        _log.msg(f"CONF_DIR: {os.getenv('CONF_DIR')} \n")
-        _log.msg(f"FLIP_FLOP_QUEUE: {os.getenv('FLIP_FLOP_QUEUE')} \n")
-        _log.msg(f"AGING_RIPENESS_PER_DAY: {os.getenv('AGING_RIPENESS_PER_DAY')} \n")
-        _log.msg(f"QUEUE_INTERVAL: {os.getenv('QUEUE_INTERVAL')} \n")
-        _log.msg(f"OVERWRITE_EPS: {os.getenv('OVERWRITE_EPS')} \n")
-        _log.msg(f"HONOR_UNMON_EPS: {os.getenv('HONOR_UNMON_EPS')} \n")
-        _log.msg(f"HONOR_UNMON_SERIES: {os.getenv('HONOR_UNMON_SERIES')} \n")
-        _log.msg(f"RUN_AGING_QUEUE: {os.getenv('RUN_AGING_QUEUE')} \n")
-        _log.msg(f"RUN_DOWNLOAD_QUEUE: {os.getenv('RUN_DOWNLOAD_QUEUE')} \n")
-        _log.msg(f"DEBUG_PRINT: {os.getenv('DEBUG_PRINT')} \n")
-        _log.msg(f"DEBUG_BREAK: {os.getenv('DEBUG_BREAK')} \n")
+        env_vars = [
+            "SONARR_API",
+            "RADARR_API",
+            "SONARR_URL",
+            "RADARR_URL",
+            "SONARR_IN_PATH",
+            "WAI_OUT_PATH",
+            "WAI_OUT_TEMP",
+            "DATA_DIR",
+            "CONF_DIR",
+            "FLIP_FLOP_QUEUE",
+            "AGING_RIPENESS_PER_DAY",
+            "QUEUE_INTERVAL",
+            "OVERWRITE_EPS",
+            "HONOR_UNMON_EPS",
+            "HONOR_UNMON_SERIES",
+            "RUN_AGING_QUEUE",
+            "RUN_DOWNLOAD_QUEUE",
+            "DEBUG_PRINT",
+            "DEBUG_BREAK",
+        ]
+        for varname in env_vars:
+            _log.msg(f"{varname}: {os.getenv(varname)} \n")
 
     retries = 0
     while retries < 5:
