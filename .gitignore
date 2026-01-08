@@ -4,5 +4,4 @@ data/**
 temp/**
 .vscode/**
 docker-compose.yml
-.nicegui/**
 conf/**
