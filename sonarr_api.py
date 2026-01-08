@@ -5,7 +5,6 @@ import os
 import logger as _log
 import requests
 
-# Load configuration from environment variables
 SONARR_URL = os.getenv("SONARR_URL") or "http://localhost:8989"
 API_KEY = os.getenv("SONARR_API") or "DEADBEEF1E5"
 
@@ -23,11 +22,11 @@ def validate_sonarr_config() -> bool:
     Returns:
         bool: True if configuration is valid, False otherwise.
     """
-    url = f"{SONARR_URL.rstrip('/')}/api/v3/health"
-    headers = {"X-Api-Key": API_KEY}
 
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(
+            f"{SONARR_URL.rstrip('/')}/api/v3/health", headers=HEADERS, timeout=10
+        )
         if response.status_code == 200:
             _log.msg("Sonarr configuration is valid.")
             return True
@@ -54,11 +53,12 @@ def refresh_series(series_id: int) -> dict:
     Raises:
         HTTPError: If the API request fails.
     """
-    url = f"{SONARR_URL.rstrip('/')}/api/v3/command"
     payload = {"name": "RefreshSeries", "seriesId": series_id}
 
     try:
-        response = requests.post(url, headers=HEADERS, json=payload)
+        response = requests.post(
+            f"{SONARR_URL.rstrip('/')}/api/v3/command", headers=HEADERS, json=payload
+        )
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
