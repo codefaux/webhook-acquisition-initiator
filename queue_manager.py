@@ -55,7 +55,8 @@ def enqueue(item: dict):
     with queue_condition:
         queue.append(item)
         save_queue()
-        queue_condition.notify()
+        # queue_condition.notify()
+        # TODO : VERIFY : Disable immediate queue dispatch bypassing queue timer!
 
 
 def dequeue(item: dict) -> bool:
