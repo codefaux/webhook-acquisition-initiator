@@ -8,7 +8,7 @@ import sys
 import threading
 import uuid
 
-import logger as _log
+import fauxlogger as _log
 from util import delete_item_file, load_item, save_item
 
 DATA_DIR = os.getenv("DATA_DIR", "./data")

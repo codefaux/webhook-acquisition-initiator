@@ -1,7 +1,7 @@
 FROM ghcr.io/codefaux/ytdlp-python-base:latest
 
 # Copy application code
-COPY requirements.txt aging_queue_manager.py logger.py main.py matcher.py processor.py queue_manager.py server.py sonarr_api.py util.py ytdlp_interface.py /app/
+COPY requirements.txt aging_queue_manager.py main.py matcher.py processor.py queue_manager.py server.py sonarr_api.py util.py ytdlp_interface.py /app/
 
 # Install Python packages
 WORKDIR /app

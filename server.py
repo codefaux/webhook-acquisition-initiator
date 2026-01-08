@@ -1,6 +1,6 @@
 # server.py
 
-import logger as _log
+import fauxlogger as _log
 from fastapi import FastAPI, Request
 
 fastapi = FastAPI()

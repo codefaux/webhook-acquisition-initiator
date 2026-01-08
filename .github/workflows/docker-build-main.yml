@@ -7,7 +7,6 @@ on:
       - main
     paths:
       - 'Dockerfile'
-      - 'logger.py'
       - 'main.py'
       - 'matcher.py'
       - 'processor.py'

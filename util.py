@@ -3,7 +3,7 @@ import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-import logger as _log
+import fauxlogger as _log
 import pycountry
 from dateutil import parser as dateparser
 

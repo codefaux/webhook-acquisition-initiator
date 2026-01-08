@@ -2,7 +2,7 @@
 
 import os
 
-import logger as _log
+import fauxlogger as _log
 import requests
 
 SONARR_URL = os.getenv("SONARR_URL") or "http://localhost:8989"

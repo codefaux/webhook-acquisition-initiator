@@ -5,3 +5,4 @@ rapidfuzz
 python-dateutil
 pathlib
 langid
+fauxlogger @ git+https://github.com/codefaux/python-fauxlogger@main

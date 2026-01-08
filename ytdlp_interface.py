@@ -1,7 +1,7 @@
 import os
 import time
 
-import logger as _log
+import fauxlogger as _log
 import yt_dlp
 import yt_dlp.options
 

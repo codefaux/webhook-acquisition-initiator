@@ -5,7 +5,7 @@ import os
 import threading
 from datetime import datetime
 
-import logger as _log
+import fauxlogger as _log
 from util import delete_item_file, load_item, save_item
 
 # from matcher import match_title_to_sonarr_episode

@@ -5,7 +5,7 @@ import signal
 import threading
 import time
 
-import logger as _log
+import fauxlogger as _log
 import uvicorn
 from aging_queue_manager import process_aging_queue
 from queue_manager import process_queue
