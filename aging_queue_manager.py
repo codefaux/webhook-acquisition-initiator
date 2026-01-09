@@ -87,7 +87,11 @@ def recheck_episode_match(item: dict) -> dict | None:
     )
     main_title = f"{item.get('creator', '')} :: {item.get('title', '')}"
     episode_result = match_title_to_sonarr_episode(
-        main_title, item.get("datecode", -1), show_data
+        main_title,
+        item.get("datecode", -1),
+        show_data,
+        None,
+        item["title_result"].get("matched_show"),
     )
 
     if episode_result["score"] < 70:

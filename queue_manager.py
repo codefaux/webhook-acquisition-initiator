@@ -166,7 +166,11 @@ def match_and_check(item: dict) -> dict | None:
         title_result.get("matched_show", ""), title_result.get("matched_id", 0)
     )
     episode_result = match_title_to_sonarr_episode(
-        main_title, item.get("datecode", ""), show_data
+        main_title,
+        item.get("datecode", ""),
+        show_data,
+        None,
+        title_result.get("matched_show", ""),
     )
     item["episode_result"] = episode_result
     _log.msg(
