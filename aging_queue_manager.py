@@ -119,10 +119,12 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
         else:
             now = int(datetime.now().timestamp())
 
-            if now - aging_item.get("last_scan", 0) > 120:
+            if now > aging_item["next_aging"]:
                 aging_item["last_scan"] = now
 
                 refresh_series(aging_item["title_result"]["matched_id"])
+                aging_item["ripeness"] += 1
+                aging_item["next_aging"] = get_next_aging_time()
                 _ = close_aging_item(
                     aging_item,
                     "Requesting Sonarr refresh for '"
@@ -130,9 +132,6 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
                     "' and returning to aging queue.",
                     None,
                 )
-            else:
-                aging_item["ripeness"] += 1
-                aging_item["next_aging"] = get_next_aging_time()
 
             return True, aging_item
 
