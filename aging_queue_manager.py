@@ -133,13 +133,13 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
                     None,
                 )
 
-            return True, aging_item
+            return False, aging_item
 
     else:
         _log.msg(
             f"Ripeness {aging_item["ripeness"]}: Item should be old enough for data."
         )
-        return True, close_aging_item(
+        return False, close_aging_item(
             aging_item,
             "Moving to manual intervention queue.",
             "manual_intervention.json",
@@ -191,6 +191,7 @@ def process_aging_queue(stop_event: threading.Event):
 
             if aging_item:
                 aging_item = aging_enqueue(aging_item)
+
             if not wait_before_loop:
                 continue
 
