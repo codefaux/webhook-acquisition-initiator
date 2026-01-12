@@ -23,6 +23,7 @@ OVERWRITE_EPS = int(os.getenv("OVERWRITE_EPS", 0)) == 1
 FLIP_FLOP_QUEUE = int(os.getenv("FLIP_FLOP_QUEUE", 0)) == 1
 DEBUG_PRINT = int(os.getenv("DEBUG_PRINT", 0)) != 0
 DEBUG_BREAK = int(os.getenv("DEBUG_BREAK", 0)) != 0
+DEBUG_DECISIONS = int(os.getenv("DEBUG_DECISIONS", 0))
 
 QUEUE_FILE = os.path.join(DATA_DIR, "queue.json")
 QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
@@ -253,12 +254,18 @@ def match_and_check(item: dict) -> dict | None:
         return diagnose_episode_score(item)
 
     if not OVERWRITE_EPS and episode_result["full_match"].get("has_file"):
+        if episode_result["score"] < DEBUG_DECISIONS:
+            breakpoint()
+
         return close_item(
             item,
             "Episode already has file. Aborting.",
             "episode_has_file.json",
             subdir="history",
         )
+
+    if episode_result["score"] < DEBUG_DECISIONS:
+        breakpoint()
 
     return item
 
