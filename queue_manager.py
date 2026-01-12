@@ -368,6 +368,8 @@ def import_item(item: dict) -> dict | None:
 
 
 def process_item(item: dict | None) -> tuple[bool, dict | None]:
+    from download_queue_manager import enqueue as enqueue_download
+
     if not item:
         return False, None
 
@@ -379,32 +381,13 @@ def process_item(item: dict | None) -> tuple[bool, dict | None]:
     if DEBUG_BREAK:
         breakpoint()
 
-    # MOVE TO DOWNLOAD QUEUE INSTEAD
-
-    item = download_item(item)
-
-    if not item:
-        return False, None
-
-    item = rename_and_move_item(item)
-
-    if not item:
-        return False, None
-
-    item = import_item(item)
-
-    if not item:
-        return False, None
+    enqueue_download(item)
 
     item = close_item(
-        item,
-        f"Item Sonarr Import result: {item.get("import_result", {}).get('status', "")}",
-        "pass.json",
+        item, "Item queued for download.", "download_enqueue.json", subdir="history"
     )
 
-    # ABOVE NEEDS TO BE HANDLED BY DOWNLOAD QUEUE
-
-    return True, item
+    return False, item
 
 
 def process_queue(stop_event: threading.Event):
