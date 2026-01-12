@@ -124,11 +124,12 @@ def diagnose_episode_score(item: dict) -> dict | None:
 
 
 def match_and_check(item: dict) -> dict | None:
-    from cfsonarr import (get_all_series, get_episode_data_for_shows,
-                          is_episode_file, is_monitored_episode,
-                          is_monitored_series)
-    from cfsonarrmatcher import (match_title_to_sonarr_episode,
+    from cfsonarrmatcher import (extract_episode_hint,
+                                 match_title_to_sonarr_episode,
                                  match_title_to_sonarr_show)
+    from pyarr import SonarrAPI
+
+    sonarr = SonarrAPI(os.getenv("SONARR_URL"), os.getenv("SONARR_API"))
 
     _log.msg(
         f"Processing item:\n"
@@ -138,33 +139,89 @@ def match_and_check(item: dict) -> dict | None:
         f"\t{_log._GREEN}url:{_log._RESET} {item.get('url', '')}"
     )
 
-    show_titles = get_all_series()
+    show_titles = []
+    id_is_monitored = {}
+
+    for _s in sonarr.get_series():
+        show_titles.append((_s["title"], _s["id"]))
+        id_is_monitored[_s["id"]] = _s["monitored"]
+
+    candidate_series_ids = []
+    matched_id = 0
 
     main_title = f"{item.get('creator', '')} :: {item.get('title', '')}"
+
+    s_hint, e_hint, substr = extract_episode_hint(main_title)
+    _log.msg(f"s_hint: {s_hint}\ne_hint: {e_hint}\nsubstr: {substr}")
+
     title_result = match_title_to_sonarr_show(main_title, show_titles)
     item["title_result"] = title_result
     _log.msg(
         f"Match result: title -> show\n"
         f"\t{_log._YELLOW}input:{_log._RESET} '{main_title}'\n"
-        f"\t{_log._BLUE}score:{_log._RESET} {title_result.get('score')}"
+        f"\t{_log._BLUE if title_result.get('score', 0) >= 70 else _log._RED}score:{_log._RESET} {title_result.get('score', 0)}"
         f"\t{_log._GREEN}matched show:{_log._RESET} '{title_result.get('matched_show')}'"
-        f" {_log._YELLOW}(id:{title_result.get('matched_id')}){_log._RESET}"
+        f" {_log._YELLOW}(id:{title_result.get('matched_id')}){_log._RESET}\n"
+        f"\t{_log._YELLOW}reasons:{_log._RESET} {title_result.get('reason', '')}"
     )
 
-    if title_result["score"] < 70:
+    if title_result["score"] >= 80:
+        candidate_series_ids.append(title_result["matched_id"])
+        matched_id = title_result.get("matched_id")
+    else:
+        _log.msg(f"Series title match {_log._RED}not good enough.{_log._RESET}")
+
+    sonarr_relevant_tags = [
+        sonarr.get_tag_detail(_tag.get("id"))
+        for _tag in sonarr.get_tag()
+        if _tag.get("label").startswith("wai-")
+    ]
+    sonarr_relevant_tags = {
+        _tag["label"].removeprefix("wai-"): _tag["seriesIds"]
+        for _tag in sonarr_relevant_tags
+        if _tag["label"] == f"wai-{item.get("creator", "").lower()}"
+    }
+
+    for series_ids in sonarr_relevant_tags.values():
+        for series_id in series_ids:
+            if not HONOR_UNMON_SERIES or (
+                HONOR_UNMON_SERIES and id_is_monitored.get(title_result["matched_id"])
+            ):
+                if series_id != matched_id:
+                    _log.msg(f"Add candidate series ID by tag: {series_id}")
+                    candidate_series_ids.append(series_id)
+
+    if len(candidate_series_ids) < 1:
         return diagnose_show_score(item)
 
-    if HONOR_UNMON_SERIES:
-        if not is_monitored_series(title_result["matched_id"]):
-            return close_item(
-                item,
-                "Series NOT monitored. Aborting.",
-                "unmonitored_series.json",
+    show_data = []
+    episode_result = {}
+
+    for candidate_series_id in candidate_series_ids:
+        _series_name = sonarr.get_series(candidate_series_id, {}).get("title", "")
+        _log.msg(
+            f"Scan episodes of candidate series: {candidate_series_id} ({_series_name})"
+        )
+
+        for _ep in sonarr.get_episode(candidate_series_id, True):
+            if HONOR_UNMON_EPS and not _ep["monitored"]:
+                continue
+
+            _ep["series"] = _series_name
+            show_data.append(
+                {
+                    "has_file": _ep["hasFile"],
+                    "series": _ep["series"],
+                    "series_id": _ep["seriesId"],
+                    "season": _ep["seasonNumber"],
+                    "episode": _ep["episodeNumber"],
+                    "episode_id": _ep["id"],
+                    "title": _ep["title"],
+                    "air_date": _ep.get("airDate", ""),
+                    "air_date_utc": _ep.get("airDateUtc", ""),
+                }
             )
 
-    show_data = get_episode_data_for_shows(
-        title_result.get("matched_show", ""), title_result.get("matched_id", 0)
-    )
     episode_result = match_title_to_sonarr_episode(
         main_title,
         item.get("datecode", ""),
@@ -176,39 +233,23 @@ def match_and_check(item: dict) -> dict | None:
     _log.msg(
         f"Match result: title -> episode:\n"
         f"\t{_log._YELLOW}input:{_log._RESET} '{main_title}'\n"
-        f"\t{_log._BLUE}score:{_log._RESET} {episode_result.get('score', 0)}"
+        f"\t{_log._BLUE}series:{_log._RESET} {episode_result.get('matched_show', '')}\n"
         f"\t{_log._GREEN}season:{_log._RESET} {episode_result.get('season', 0)}"
-        f"\t{_log._GREEN}episode:{_log._RESET} {episode_result.get('episode')}\n"
-        f"{_log._GREEN}title:{_log._RESET} '{episode_result.get('episode_orig_title', '')}'\n"
-        f"\t{_log._GREEN}reasons:{_log._RESET} {episode_result.get('reason', '')}"
+        f"\t{_log._GREEN}episode:{_log._RESET} {episode_result.get('episode')}"
+        f"\t{_log._GREEN}title:{_log._RESET} '{episode_result.get('episode_orig_title', '')}'\n"
+        f"\t{_log._BLUE if episode_result.get('score', 0) >= 70 else _log._RED}score:{_log._RESET} {episode_result.get('score', 0)}\n"
+        f"\t{_log._YELLOW}reasons:{_log._RESET} {episode_result.get('reason', '')}"
     )
 
     if episode_result["score"] < 70:
         return diagnose_episode_score(item)
 
-    if HONOR_UNMON_EPS:
-        if not is_monitored_episode(
-            title_result.get("matched_id", 0),
-            episode_result.get("season", 0),
-            episode_result.get("episode", 0),
-        ):
-            return close_item(
-                item,
-                "Episode NOT monitored. Aborting.",
-                "unmonitored_episode.json",
-            )
-
-    if not OVERWRITE_EPS:
-        if is_episode_file(
-            title_result.get("matched_id", 0),
-            episode_result.get("season", 0),
-            episode_result.get("episode", 0),
-        ):
-            return close_item(
-                item,
-                "Episode already has file. Aborting.",
-                "episode_has_file.json",
-            )
+    if not OVERWRITE_EPS and episode_result["full_match"].get("has_file"):
+        return close_item(
+            item,
+            "Episode already has file. Aborting.",
+            "episode_has_file.json",
+        )
 
     return item
 
@@ -301,12 +342,14 @@ def rename_and_move_item(item: dict) -> dict | None:
 def import_item(item: dict) -> dict | None:
     from cfsonarr import import_downloaded_episode
 
+    _id = item["episode_result"].get("matched_series_id")
+    _season = item["episode_result"].get("season")
+    _episode = item["episode_result"].get("episode")
+    _filename = item["file_name"]
+    _folder = SONARR_IN_PATH
+
     import_result = import_downloaded_episode(
-        item["title_result"].get("matched_id"),
-        item["episode_result"].get("season"),
-        item["episode_result"].get("episode"),
-        item["file_name"],
-        SONARR_IN_PATH,
+        _id, _season, _episode, _filename, _folder
     )
 
     item["import_result"] = import_result
