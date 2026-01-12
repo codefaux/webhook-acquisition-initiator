@@ -369,6 +369,8 @@ def process_item(item: dict | None) -> tuple[bool, dict | None]:
     if DEBUG_BREAK:
         breakpoint()
 
+    # MOVE TO DOWNLOAD QUEUE INSTEAD
+
     item = download_item(item)
 
     if not item:
@@ -389,6 +391,8 @@ def process_item(item: dict | None) -> tuple[bool, dict | None]:
         f"Item Sonarr Import result: {item.get("import_result", {}).get('status', "")}",
         "pass.json",
     )
+
+    # ABOVE NEEDS TO BE HANDLED BY DOWNLOAD QUEUE
 
     return True, item
 

@@ -9,6 +9,7 @@ import fauxlogger as _log
 import uvicorn
 from aging_queue_manager import process_aging_queue
 from cfsonarr import validate_sonarr_config
+from download_queue_manager import process_queue as process_download_queue
 from queue_manager import process_queue
 from server import fastapi
 
@@ -18,8 +19,9 @@ CONF_DIR = os.getenv("CONF_DIR") or "./conf"
 SONARR_URL = os.getenv("SONARR_URL")
 API_KEY = os.getenv("SONARR_API")
 SONARR_IN_PATH = os.getenv("SONARR_IN_PATH")
-RUN_DOWNLOAD_QUEUE = int(os.getenv("RUN_DOWNLOAD_QUEUE", 1)) == 1
+RUN_QUEUE = int(os.getenv("RUN_QUEUE", 1)) == 1
 RUN_AGING_QUEUE = int(os.getenv("RUN_AGING_QUEUE", 1)) == 1
+RUN_DOWNLOAD_QUEUE = int(os.getenv("RUN_DOWNLOAD_QUEUE", 1)) == 1
 DEBUG_PRINT = int(os.getenv("DEBUG_PRINT", 0)) == 1
 
 if not SONARR_URL or not API_KEY:
@@ -44,6 +46,14 @@ def start_queue_processor():
     )
     queue_thread.start()
     return queue_thread
+
+
+def start_download_queue_processor():
+    dl_queue_thread = threading.Thread(
+        target=process_download_queue, args=(stop_event,), daemon=True
+    )
+    dl_queue_thread.start()
+    return dl_queue_thread
 
 
 def start_aging_queue_processor():
@@ -100,18 +110,20 @@ if __name__ == "__main__":
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, handle_exit_signal)
 
+    queue_thread = start_queue_processor() if RUN_QUEUE else threading.Thread()
     aging_queue_thread = (
         start_aging_queue_processor() if RUN_AGING_QUEUE else threading.Thread()
     )
-    queue_thread = start_queue_processor() if RUN_DOWNLOAD_QUEUE else threading.Thread()
+    download_queue_thread = (
+        start_download_queue_processor() if RUN_DOWNLOAD_QUEUE else threading.Thread()
+    )
 
     try:
         uvicorn.run(fastapi, host="0.0.0.0", port=8000)
     finally:
         stop_event.set()
-        if RUN_AGING_QUEUE:
-            queue_thread.join()
-        if RUN_DOWNLOAD_QUEUE:
-            aging_queue_thread.join()
+        queue_thread.join()
+        aging_queue_thread.join()
+        download_queue_thread.join()
 
         _log.msg("Shutdown complete.")
