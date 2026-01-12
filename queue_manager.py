@@ -71,13 +71,17 @@ def dequeue(item: dict) -> bool:
 
 
 def close_item(
-    item: dict, message: str, filename: str | None, stack_offset: int = 2
+    item: dict,
+    message: str,
+    filename: str | None,
+    stack_offset: int = 2,
+    subdir: str = "",
 ) -> dict | None:
     if DEBUG_BREAK:
         breakpoint()
     _log.msg(message, stack_offset)
     if filename:
-        save_item(item, filename)
+        save_item(item, filename, subdir=subdir)
     delete_item_file("current.json")
 
     return None

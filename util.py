@@ -100,8 +100,9 @@ def delete_item_file(file: str):
         os.remove(file_path)
 
 
-def save_item(item, file: str, replace: bool = False):
-    file_path = os.path.join(DATA_DIR, file)
+def save_item(item, file: str, replace: bool = False, subdir: str = ""):
+    _dir = os.path.join(DATA_DIR, subdir)
+    file_path = os.path.join(_dir, file)
 
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
 

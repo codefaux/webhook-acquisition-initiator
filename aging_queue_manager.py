@@ -66,13 +66,17 @@ def aging_enqueue(aging_item: dict) -> None:
 
 
 def close_aging_item(
-    aging_item: dict, message: str, filename: str | None, stack_offset: int = 2
+    aging_item: dict,
+    message: str,
+    filename: str | None,
+    stack_offset: int = 2,
+    subdir: str = "",
 ) -> None:
     # if DEBUG_BREAK:
     #     breakpoint()
     _log.msg(message, stack_offset)
     if filename:
-        save_item(aging_item, filename)
+        save_item(aging_item, filename, subdir=subdir)
     delete_item_file("current_aging.json")
 
     return None
