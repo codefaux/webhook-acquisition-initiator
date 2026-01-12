@@ -123,6 +123,7 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
                 aging_item,
                 f"{_log._GREEN}Episode found.{_log._RESET} Returning item to main queue.",
                 "requeued.json",
+                subdir="history",
             )
         else:
             now = int(datetime.now().timestamp())
@@ -151,6 +152,7 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
             aging_item,
             "Moving to manual intervention queue.",
             "manual_intervention.json",
+            subdir="history",
         )
 
 

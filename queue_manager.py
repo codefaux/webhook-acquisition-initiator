@@ -96,6 +96,7 @@ def diagnose_show_score(item: dict) -> dict | None:
         item,
         f"Series match score not high enough. ({item["title_result"]["score"]} < 70)  Aborting.",
         "series_score.json",
+        subdir="history",
     )
 
 
@@ -123,7 +124,10 @@ def diagnose_episode_score(item: dict) -> dict | None:
         _log.msg(f"Ripeness {ripeness}: Item should be old enough for data")
 
     return close_item(
-        item, "Moving to manual intervention queue.", "manual_intervention.json"
+        item,
+        "Moving to manual intervention queue.",
+        "manual_intervention.json",
+        subdir="history",
     )
 
 
@@ -253,6 +257,7 @@ def match_and_check(item: dict) -> dict | None:
             item,
             "Episode already has file. Aborting.",
             "episode_has_file.json",
+            subdir="history",
         )
 
     return item
@@ -308,6 +313,7 @@ def download_item(item: dict) -> dict | None:
             item,
             "No file at download location. Aborting main queue thread. (API will still function.)",
             "download_fail.json",
+            subdir="history",
         )
         sys.exit(1)  # error condition
 
@@ -424,7 +430,7 @@ def process_queue(stop_event: threading.Event):
                     _log.msg("Inverting queue")
                     queue.reverse()
                 save_item(item, "current.json", True)
-                save_item(item, "all_processed.json")
+                save_item(item, "all_processed.json", subdir="history")
                 save_queue()
 
         if item:

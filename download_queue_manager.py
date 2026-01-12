@@ -132,6 +132,7 @@ def download_item(item: dict) -> tuple[bool, dict | None]:
             item,
             "No file at download location. Aborting download queue thread. (API will still function.)",
             "download_fail.json",
+            subdir="history",
         )
         sys.exit(1)  # error condition
 
@@ -208,7 +209,7 @@ def process_queue(stop_event: threading.Event):
                     _log.msg("Inverting queue")
                     dl_queue.reverse()
                 save_item(dl_item, "current_download.json", True)
-                save_item(dl_item, "all_processed.json")
+                save_item(dl_item, "all_processed.json", subdir="history")
                 save_queue()
 
         if dl_item:
