@@ -21,7 +21,7 @@ DEBUG_PRINT = int(os.getenv("DEBUG_PRINT", 0)) != 0
 DEBUG_BREAK = int(os.getenv("DEBUG_BREAK", 0)) != 0
 
 DOWNLOAD_QUEUE_FILE = os.path.join(DATA_DIR, "download_queue.json")
-DOWNLOAD_QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
+DOWNLOAD_QUEUE_INTERVAL = int(os.getenv("DOWNLOAD_QUEUE_INTERVAL", 5))
 
 dl_queue_lock = threading.Lock()
 dl_queue_condition = threading.Condition(lock=dl_queue_lock)
@@ -119,7 +119,36 @@ def safe_move(src, dst):
             raise
 
 
-def download_item(item: dict) -> tuple[bool, dict | None]:
+def process_item(item: dict | None) -> tuple[bool, dict | None]:
+    if not item:
+        return False, None
+
+    item = download_item(item)
+
+    if not item:
+        return False, None
+
+    item = rename_and_move_item(item)
+
+    if not item:
+        return False, None
+
+    item = import_item(item)
+
+    if not item:
+        return False, None
+
+    item = close_item(
+        item,
+        f"Item Sonarr Import result: {item.get("import_result", {}).get('status', "")}",
+        "pass.json",
+        subdir="history",
+    )
+
+    return True, item
+
+
+def download_item(item: dict) -> dict | None:
     from ytdlp_interface import download_video
 
     download_filename = download_video(
@@ -138,7 +167,7 @@ def download_item(item: dict) -> tuple[bool, dict | None]:
 
     _log.msg(f"Download returned: {download_filename}")
 
-    return True, item
+    return item
 
 
 def rename_and_move_item(item: dict) -> dict | None:
@@ -213,7 +242,7 @@ def process_queue(stop_event: threading.Event):
                 save_queue()
 
         if dl_item:
-            wait_before_loop, dl_item = download_item(dl_item)
+            wait_before_loop, dl_item = process_item(dl_item)
 
             if not wait_before_loop:
                 continue
