@@ -46,7 +46,7 @@ def format_bytes(size: int | float) -> str:
 create_parser = yt_dlp.options.create_parser
 
 
-def parse_patched_options(opts: list) -> yt_dlp.ParsedOptions:
+def parse_patched_options(opts: list):
     patched_parser = create_parser()
     patched_parser.defaults.update(
         {
@@ -60,7 +60,7 @@ def parse_patched_options(opts: list) -> yt_dlp.ParsedOptions:
         yt_dlp.options.create_parser = create_parser
 
 
-default_ytdlp_opts = parse_patched_options([]).ydl_opts
+default_ytdlp_opts = dict(parse_patched_options([]).ydl_opts)
 
 
 def cli_to_api(opts: list, cli_defaults: bool = False) -> dict:
@@ -68,7 +68,7 @@ def cli_to_api(opts: list, cli_defaults: bool = False) -> dict:
         opts
     ).ydl_opts
 
-    diff = {k: v for k, v in new_opts.items() if default_ytdlp_opts[k] != v}
+    diff: dict = {k: v for k, v in new_opts.items() if default_ytdlp_opts[k] != v}
     if "postprocessors" in diff:
         diff["postprocessors"] = [
             pp
@@ -86,7 +86,7 @@ def download_video(video_url: str, target_folder: str) -> str | None:
 
     ensure_dir(target_folder)
 
-    ydl_opts = {
+    ydl_opts: dict = {
         "progress_hooks": [ytdlp_progress_hook],
         "noplaylist": True,
         # "verbose": True,
@@ -115,7 +115,7 @@ def download_video(video_url: str, target_folder: str) -> str | None:
         f", {_log._YELLOW}cookies {_log._GREEN if using_cookies else _log._RED}{using_cookies}{_log._RESET}"
     )
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # pyright: ignore[reportArgumentType]
         info_dict = ydl.extract_info(video_url, download=True)
 
         if info_dict is None:
