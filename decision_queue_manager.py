@@ -250,22 +250,19 @@ def match_and_check(item: dict) -> dict | None:
         f"\t{_log._YELLOW}reasons:{_log._RESET} {episode_result.get('reason', '')}"
     )
 
+    if episode_result["score"] < DEBUG_DECISIONS:
+        breakpoint()
+
     if episode_result["score"] < 70:
         return diagnose_episode_score(item)
 
     if not OVERWRITE_EPS and episode_result["full_match"].get("has_file"):
-        if episode_result["score"] < DEBUG_DECISIONS:
-            breakpoint()
-
         return close_item(
             item,
             "Episode already has file. Aborting.",
             "episode_has_file.json",
             subdir="history",
         )
-
-    if episode_result["score"] < DEBUG_DECISIONS:
-        breakpoint()
 
     return item
 
