@@ -5,13 +5,7 @@ import json
 import os
 import re
 
-from queue_manager import dequeue
-
 DATA_DIR = os.getenv("DATA_DIR") or "./data"
-
-
-def dequeue_item(item: dict):
-    return dequeue(item)
 
 
 def process_message(raw_text: str) -> dict:

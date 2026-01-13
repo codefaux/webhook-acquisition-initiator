@@ -7,10 +7,11 @@ on:
       - main
     paths:
       - 'aging_queue_manager.py'
+      - 'decision_queue_manager.py'
+      - 'download_queue_manager.py'
       - 'Dockerfile'
       - 'main.py'
       - 'processor.py'
-      - 'queue_manager.py'
       - 'requirements.txt'
       - 'server.py'
       - 'util.py'

@@ -7,10 +7,10 @@ import time
 
 import fauxlogger as _log
 import uvicorn
-from aging_queue_manager import process_aging_queue
+from aging_queue_manager import process_queue as process_aging_queue
 from cfsonarr import validate_sonarr_config
+from decision_queue_manager import process_queue as process_decision_queue
 from download_queue_manager import process_queue as process_download_queue
-from queue_manager import process_queue
 from server import fastapi
 
 # Load configuration from environment variables
@@ -19,7 +19,7 @@ CONF_DIR = os.getenv("CONF_DIR") or "./conf"
 SONARR_URL = os.getenv("SONARR_URL")
 API_KEY = os.getenv("SONARR_API")
 SONARR_IN_PATH = os.getenv("SONARR_IN_PATH")
-RUN_QUEUE = int(os.getenv("RUN_QUEUE", 1)) == 1
+RUN_DECISION_QUEUE = int(os.getenv("RUN_DECISION_QUEUE", 1)) == 1
 RUN_AGING_QUEUE = int(os.getenv("RUN_AGING_QUEUE", 1)) == 1
 RUN_DOWNLOAD_QUEUE = int(os.getenv("RUN_DOWNLOAD_QUEUE", 1)) == 1
 DEBUG_PRINT = int(os.getenv("DEBUG_PRINT", 0)) == 1
@@ -40,9 +40,9 @@ def handle_exit_signal(signum, frame):
     stop_event.set()
 
 
-def start_queue_processor():
+def start_decision_queue_processor():
     queue_thread = threading.Thread(
-        target=process_queue, args=(stop_event,), daemon=True
+        target=process_decision_queue, args=(stop_event,), daemon=True
     )
     queue_thread.start()
     return queue_thread
@@ -81,14 +81,18 @@ if __name__ == "__main__":
             "CONF_DIR",
             "FLIP_FLOP_QUEUE",
             "AGING_RIPENESS_PER_DAY",
-            "QUEUE_INTERVAL",
+            "DOWNLOAD_QUEUE_INTERVAL",
+            "AGING_QUEUE_INTERVAL",
+            "DECISION_QUEUE_INTERVAL",
             "OVERWRITE_EPS",
             "HONOR_UNMON_EPS",
             "HONOR_UNMON_SERIES",
             "RUN_AGING_QUEUE",
             "RUN_DOWNLOAD_QUEUE",
+            "RUN_DECISION_QUEUE",
             "DEBUG_PRINT",
             "DEBUG_BREAK",
+            "DEBUG_DECISIONS",
         ]
         for varname in env_vars:
             _log.msg(f"{varname}: {os.getenv(varname)} \n")
@@ -110,7 +114,9 @@ if __name__ == "__main__":
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, handle_exit_signal)
 
-    queue_thread = start_queue_processor() if RUN_QUEUE else threading.Thread()
+    decision_queue_thread = (
+        start_decision_queue_processor() if RUN_DECISION_QUEUE else threading.Thread()
+    )
     aging_queue_thread = (
         start_aging_queue_processor() if RUN_AGING_QUEUE else threading.Thread()
     )
@@ -122,7 +128,7 @@ if __name__ == "__main__":
         uvicorn.run(fastapi, host="0.0.0.0", port=8000)
     finally:
         stop_event.set()
-        queue_thread.join()
+        decision_queue_thread.join()
         aging_queue_thread.join()
         download_queue_thread.join()
 

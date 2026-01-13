@@ -1,4 +1,4 @@
-# queue_manager.py
+# aging_queue_manager.py
 
 import json
 import os
@@ -108,7 +108,7 @@ def recheck_episode_match(item: dict) -> dict | None:
 
 def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
     from cfsonarr import refresh_series
-    from queue_manager import enqueue
+    from decision_queue_manager import enqueue as enqueue_decision
     from util import get_new_ripeness, get_next_aging_time
 
     if aging_item.get("ripeness", -1) == -1:
@@ -118,7 +118,7 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
         checked_item = recheck_episode_match(aging_item)
 
         if checked_item:
-            enqueue(checked_item)
+            enqueue_decision(checked_item)
             return True, close_aging_item(
                 aging_item,
                 f"{_log._GREEN}Episode found.{_log._RESET} Returning item to main queue.",
@@ -156,7 +156,7 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
         )
 
 
-def process_aging_queue(stop_event: threading.Event):
+def process_queue(stop_event: threading.Event):
     global aging_item
     global aging_queue
 

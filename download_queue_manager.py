@@ -1,4 +1,4 @@
-# queue_manager.py
+# download_queue_manager.py
 
 import errno
 import json
@@ -29,7 +29,7 @@ dl_queue = []
 dl_item = None
 
 
-def load_queue():
+def load_download_queue():
     global dl_queue
     dl_queue = []
     if os.path.exists(DOWNLOAD_QUEUE_FILE):
@@ -42,7 +42,7 @@ def load_queue():
                 _log.msg("Failed to decode queue JSON; starting with empty queue.")
 
 
-def save_queue():
+def save_download_queue():
     global dl_queue
     with open(DOWNLOAD_QUEUE_FILE, "w") as f:
         json.dump(dl_queue, f, indent=2)
@@ -51,7 +51,7 @@ def save_queue():
 def enqueue(item: dict):
     with dl_queue_condition:
         dl_queue.append(item)
-        save_queue()
+        save_download_queue()
 
 
 def dequeue(item: dict) -> bool:
@@ -59,7 +59,7 @@ def dequeue(item: dict) -> bool:
         for i, q_item in enumerate(dl_queue):
             if q_item == item:
                 del dl_queue[i]
-                save_queue()
+                save_download_queue()
 
                 return True
         return False
@@ -222,7 +222,7 @@ def process_queue(stop_event: threading.Event):
     if dl_item is None:
         dl_item = load_item("current_download.json")
     if dl_queue == []:
-        load_queue()
+        load_download_queue()
 
     while not stop_event.is_set():
         with dl_queue_condition:
@@ -239,7 +239,7 @@ def process_queue(stop_event: threading.Event):
                     dl_queue.reverse()
                 save_item(dl_item, "current_download.json", True)
                 save_item(dl_item, "all_processed.json", subdir="history")
-                save_queue()
+                save_download_queue()
 
         if dl_item:
             wait_before_loop, dl_item = process_item(dl_item)

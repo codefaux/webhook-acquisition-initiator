@@ -9,8 +9,8 @@ fastapi = FastAPI()
 def handle_reprocess(from_file: str, item: str):
     import ast
 
+    from decision_queue_manager import enqueue as enqueue_decision
     from processor import remove_json_item
-    from queue_manager import enqueue
 
     item = ast.literal_eval(item)
 
@@ -18,7 +18,7 @@ def handle_reprocess(from_file: str, item: str):
         _log.msg("Error: item received is not a valid item")
         return
 
-    enqueue(item)
+    enqueue_decision(item)
     remove_json_item(from_file, item)
     # add_json_item("queue", item)
 
@@ -39,8 +39,8 @@ def handle_remove(from_file: str, item: str):
 
 @fastapi.post("/enqueue")
 async def enqueue(request: Request):
+    from decision_queue_manager import enqueue as enqueue_decision
     from processor import process_message
-    from queue_manager import enqueue
 
     payload = await request.json()
     text = payload.get("message")
@@ -54,7 +54,7 @@ async def enqueue(request: Request):
     if processed == "":
         return {"error": "Unable to process message"}
 
-    enqueue(processed)
+    enqueue_decision(processed)
     return {"status": "queued"}
 
 
@@ -69,7 +69,8 @@ async def get_item(datafrom: str, name: str | None = None, value: str | None = N
 @fastapi.post("/dequeue_item")
 async def dequeue_item(request: Request):
     item = await request.json()
-    from processor import dequeue_item
 
-    result = dequeue_item(item)
+    from decision_queue_manager import dequeue as dequeue_decision
+
+    result = dequeue_decision(item)
     return result

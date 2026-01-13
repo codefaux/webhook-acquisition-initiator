@@ -1,4 +1,4 @@
-# queue_manager.py
+# decision_queue_manager.py
 
 import errno
 import json
@@ -25,47 +25,47 @@ DEBUG_PRINT = int(os.getenv("DEBUG_PRINT", 0)) != 0
 DEBUG_BREAK = int(os.getenv("DEBUG_BREAK", 0)) != 0
 DEBUG_DECISIONS = int(os.getenv("DEBUG_DECISIONS", 0))
 
-QUEUE_FILE = os.path.join(DATA_DIR, "queue.json")
-QUEUE_INTERVAL = int(os.getenv("QUEUE_INTERVAL", 5))
-queue_lock = threading.Lock()
-queue_condition = threading.Condition(lock=queue_lock)
-queue = []
+DECISION_QUEUE_FILE = os.path.join(DATA_DIR, "queue.json")
+DECISION_QUEUE_INTERVAL = int(os.getenv("DECISION_QUEUE_INTERVAL", 5))
+decision_queue_lock = threading.Lock()
+decision_queue_condition = threading.Condition(lock=decision_queue_lock)
+decision_queue = []
 item = None
 
 
-def load_queue():
-    global queue
-    queue = []
-    if os.path.exists(QUEUE_FILE):
-        with open(QUEUE_FILE, "r") as f:
+def load_decision_queue():
+    global decision_queue
+    decision_queue = []
+    if os.path.exists(DECISION_QUEUE_FILE):
+        with open(DECISION_QUEUE_FILE, "r") as f:
             try:
                 data = json.load(f)
                 if isinstance(data, list):
-                    queue.extend(data)
+                    decision_queue.extend(data)
             except json.JSONDecodeError:
                 _log.msg("Failed to decode queue JSON; starting with empty queue.")
 
 
-def save_queue():
-    global queue
-    with open(QUEUE_FILE, "w") as f:
-        json.dump(queue, f, indent=2)
+def save_decision_queue():
+    global decision_queue
+    with open(DECISION_QUEUE_FILE, "w") as f:
+        json.dump(decision_queue, f, indent=2)
 
 
 def enqueue(item: dict):
-    with queue_condition:
-        queue.append(item)
-        save_queue()
+    with decision_queue_condition:
+        decision_queue.append(item)
+        save_decision_queue()
         # queue_condition.notify()
         # TODO : VERIFY : Disable immediate queue dispatch bypassing queue timer!
 
 
 def dequeue(item: dict) -> bool:
-    with queue_condition:
-        for i, q_item in enumerate(queue):
+    with decision_queue_condition:
+        for i, q_item in enumerate(decision_queue):
             if q_item == item:
-                del queue[i]
-                save_queue()
+                del decision_queue[i]
+                save_decision_queue()
 
                 return True
         return False
@@ -399,29 +399,29 @@ def process_item(item: dict | None) -> tuple[bool, dict | None]:
 
 def process_queue(stop_event: threading.Event):
     global item
-    global queue
+    global decision_queue
 
     if item is None:
         item = load_item("current.json")
-    if queue == []:
-        load_queue()
+    if decision_queue == []:
+        load_decision_queue()
 
     while not stop_event.is_set():
-        with queue_condition:
-            while not item and not queue and not stop_event.is_set():
+        with decision_queue_condition:
+            while not item and not decision_queue and not stop_event.is_set():
                 _log.msg(
-                    f"No current item. No queue. Sleeping for at most {QUEUE_INTERVAL} min."
+                    f"No current item. No queue. Sleeping for at most {DECISION_QUEUE_INTERVAL} min."
                 )
-                queue_condition.wait(timeout=QUEUE_INTERVAL * 60)
+                decision_queue_condition.wait(timeout=DECISION_QUEUE_INTERVAL * 60)
 
-            if queue and not item:
-                item = queue.pop(0)
+            if decision_queue and not item:
+                item = decision_queue.pop(0)
                 if FLIP_FLOP_QUEUE:
                     _log.msg("Inverting queue")
-                    queue.reverse()
+                    decision_queue.reverse()
                 save_item(item, "current.json", True)
                 save_item(item, "all_processed.json", subdir="history")
-                save_queue()
+                save_decision_queue()
 
         if item:
             wait_before_loop, item = process_item(item)
@@ -429,6 +429,6 @@ def process_queue(stop_event: threading.Event):
             if not wait_before_loop:
                 continue
 
-            _log.msg(f"Queue thread sleeping for {QUEUE_INTERVAL} min.")
-            with queue_condition:
-                queue_condition.wait(timeout=QUEUE_INTERVAL * 60)
+            _log.msg(f"Queue thread sleeping for {DECISION_QUEUE_INTERVAL} min.")
+            with decision_queue_condition:
+                decision_queue_condition.wait(timeout=DECISION_QUEUE_INTERVAL * 60)
