@@ -41,16 +41,22 @@ def handle_exit_signal(signum, frame):
 
 
 def start_decision_queue_processor():
-    queue_thread = threading.Thread(
-        target=process_decision_queue, args=(stop_event,), daemon=True
+    decision_queue_thread = threading.Thread(
+        target=process_decision_queue,
+        args=(stop_event,),
+        daemon=True,
+        name="decision_queue",
     )
-    queue_thread.start()
-    return queue_thread
+    decision_queue_thread.start()
+    return decision_queue_thread
 
 
 def start_download_queue_processor():
     dl_queue_thread = threading.Thread(
-        target=process_download_queue, args=(stop_event,), daemon=True
+        target=process_download_queue,
+        args=(stop_event,),
+        daemon=True,
+        name="download_queue",
     )
     dl_queue_thread.start()
     return dl_queue_thread
@@ -58,7 +64,7 @@ def start_download_queue_processor():
 
 def start_aging_queue_processor():
     aging_queue_thread = threading.Thread(
-        target=process_aging_queue, args=(stop_event,), daemon=True
+        target=process_aging_queue, args=(stop_event,), daemon=True, name="aging_queue"
     )
     aging_queue_thread.start()
     return aging_queue_thread
