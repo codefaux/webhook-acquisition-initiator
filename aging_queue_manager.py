@@ -5,8 +5,8 @@ import os
 import threading
 from datetime import datetime
 
+import fauxjson as _json
 import fauxlogger as _log
-from util import delete_item_file, load_item, save_item
 
 DATA_DIR = os.getenv("DATA_DIR") or "./data"
 
@@ -76,8 +76,8 @@ def close_aging_item(
     #     breakpoint()
     _log.msg(message, stack_offset)
     if filename:
-        save_item(aging_item, filename, subdir=subdir)
-    delete_item_file("current_aging.json")
+        _json.save_item(aging_item, filename, subdir=subdir)
+    _json.delete_item_file("current_aging.json")
 
     return None
 
@@ -161,7 +161,7 @@ def process_queue(stop_event: threading.Event):
     global aging_queue
 
     if aging_item is None:
-        aging_item = load_item("current_aging.json")
+        aging_item = _json.load_item("current_aging.json")
     if aging_queue == []:
         load_aging_queue()
 
@@ -189,7 +189,7 @@ def process_queue(stop_event: threading.Event):
                     )
                     aging_item = eligible_aging_items[0]
                     aging_queue.remove(aging_item)
-                    save_item(aging_item, "current_aging.json", True)
+                    _json.save_item(aging_item, "current_aging.json", True)
                     save_aging_queue()
                 elif DEBUG_PRINT:
                     _log.msg("Queue present but no eligible items.")

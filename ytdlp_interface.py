@@ -82,7 +82,7 @@ def download_video(video_url: str, target_folder: str) -> str | None:
     """Download a video using the yt_dlp Python API into the target folder.
     Returns the destination file path or None on failure.
     """
-    from util import ensure_dir
+    from fauxjson import ensure_dir
 
     ensure_dir(target_folder)
 

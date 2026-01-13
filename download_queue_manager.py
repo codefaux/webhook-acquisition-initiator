@@ -8,8 +8,8 @@ import sys
 import threading
 import uuid
 
+import fauxjson as _json
 import fauxlogger as _log
-from util import delete_item_file, load_item, save_item
 
 DATA_DIR = os.getenv("DATA_DIR", "./data")
 
@@ -76,8 +76,8 @@ def close_item(
         breakpoint()
     _log.msg(message, stack_offset)
     if filename:
-        save_item(item, filename, subdir=subdir)
-    delete_item_file("current_download.json")
+        _json.save_item(item, filename, subdir=subdir)
+    _json.delete_item_file("current_download.json")
 
     return None
 
@@ -220,7 +220,7 @@ def process_queue(stop_event: threading.Event):
     global dl_queue
 
     if dl_item is None:
-        dl_item = load_item("current_download.json")
+        dl_item = _json.load_item("current_download.json")
     if dl_queue == []:
         load_download_queue()
 
@@ -237,8 +237,8 @@ def process_queue(stop_event: threading.Event):
                 if FLIP_FLOP_QUEUE:
                     _log.msg("Inverting queue")
                     dl_queue.reverse()
-                save_item(dl_item, "current_download.json", True)
-                save_item(dl_item, "all_processed.json", subdir="history")
+                _json.save_item(dl_item, "current_download.json", True)
+                _json.save_item(dl_item, "all_processed.json", subdir="history")
                 save_download_queue()
 
         if dl_item:
