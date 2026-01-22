@@ -133,9 +133,7 @@ def diagnose_episode_score(item: dict) -> dict | None:
 
 
 def match_and_check(item: dict) -> dict | None:
-    from cfsonarrmatcher import (extract_episode_hint,
-                                 match_title_to_sonarr_episode,
-                                 match_title_to_sonarr_show)
+    from cfsonarrmatcher import match_to_episode, match_to_show
     from pyarr import SonarrAPI
 
     sonarr = SonarrAPI(os.getenv("SONARR_URL"), os.getenv("SONARR_API"))
@@ -163,7 +161,7 @@ def match_and_check(item: dict) -> dict | None:
     s_hint, e_hint, substr = extract_episode_hint(main_title)
     _log.msg(f"s_hint: {s_hint}\ne_hint: {e_hint}\nsubstr: {substr}")
 
-    title_result = match_title_to_sonarr_show(main_title, show_titles)
+    title_result = match_to_show(main_title, show_titles)
     item["title_result"] = title_result
     _log.msg(
         f"Match result: title -> show\n"
@@ -231,7 +229,7 @@ def match_and_check(item: dict) -> dict | None:
                 }
             )
 
-    episode_result = match_title_to_sonarr_episode(
+    episode_result = match_to_episode(
         main_title,
         item.get("datecode", ""),
         show_data,

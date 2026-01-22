@@ -84,13 +84,13 @@ def close_aging_item(
 
 def recheck_episode_match(item: dict) -> dict | None:
     from cfsonarr import get_episode_data_for_shows
-    from cfsonarrmatcher import match_title_to_sonarr_episode
+    from cfsonarrmatcher import match_to_episode
 
     show_data = get_episode_data_for_shows(
         item["title_result"].get("matched_show"), item["title_result"].get("matched_id")
     )
     main_title = f"{item.get('creator', '')} :: {item.get('title', '')}"
-    episode_result = match_title_to_sonarr_episode(
+    episode_result = match_to_episode(
         main_title,
         item.get("datecode", -1),
         show_data,
