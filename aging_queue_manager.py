@@ -76,8 +76,8 @@ def close_aging_item(
     #     breakpoint()
     _log.msg(message, stack_offset)
     if filename:
-        _json.save_item(aging_item, filename, subdir=subdir)
-    _json.delete_item_file("current_aging.json")
+        _json.save_json(aging_item, filename, subdir=subdir)
+    _json.delete_json_file("current_aging.json")
 
     return None
 
@@ -121,7 +121,7 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
             enqueue_decision(checked_item)
             return True, close_aging_item(
                 aging_item,
-                f"{_log._GREEN}Episode found.{_log._RESET} Returning item to main queue.",
+                f"{_log._BLUE}Episode candidate found.{_log._RESET} Returning item to main queue.",
                 "requeued.json",
                 subdir="history",
             )
@@ -161,7 +161,7 @@ def process_queue(stop_event: threading.Event):
     global aging_queue
 
     if aging_item is None:
-        aging_item = _json.load_item("current_aging.json")
+        aging_item = _json.load_json("current_aging.json")
     if aging_queue == []:
         load_aging_queue()
 
@@ -189,7 +189,7 @@ def process_queue(stop_event: threading.Event):
                     )
                     aging_item = eligible_aging_items[0]
                     aging_queue.remove(aging_item)
-                    _json.save_item(aging_item, "current_aging.json", True)
+                    _json.save_json(aging_item, "current_aging.json", True)
                     save_aging_queue()
                 elif DEBUG_PRINT:
                     _log.msg("Queue present but no eligible items.")

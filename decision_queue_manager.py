@@ -82,8 +82,8 @@ def close_item(
         breakpoint()
     _log.msg(message, stack_offset)
     if filename:
-        _json.save_item(item, filename, subdir=subdir)
-    _json.delete_item_file("current.json")
+        _json.save_json(item, filename, subdir=subdir)
+    _json.delete_json_file("current.json")
 
     return None
 
@@ -399,7 +399,7 @@ def process_queue(stop_event: threading.Event):
     global decision_queue
 
     if item is None:
-        item = _json.load_item("current.json")
+        item = _json.load_json("current.json")
     if decision_queue == []:
         load_decision_queue()
 
@@ -416,8 +416,8 @@ def process_queue(stop_event: threading.Event):
                 if FLIP_FLOP_QUEUE:
                     _log.msg("Inverting queue")
                     decision_queue.reverse()
-                _json.save_item(item, "current.json", True)
-                _json.save_item(item, "all_processed.json", subdir="history")
+                _json.save_json(item, "current.json", True)
+                _json.save_json(item, "all_processed.json", subdir="history")
                 save_decision_queue()
 
         if item:
