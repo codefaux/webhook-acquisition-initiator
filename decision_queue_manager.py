@@ -10,6 +10,7 @@ import uuid
 
 import fauxjson as _json
 import fauxlogger as _log
+from fauxcache import timed_cache
 
 DATA_DIR = os.getenv("DATA_DIR", "./data")
 
@@ -24,6 +25,8 @@ FLIP_FLOP_QUEUE = int(os.getenv("FLIP_FLOP_QUEUE", 0)) == 1
 DEBUG_PRINT = int(os.getenv("DEBUG_PRINT", 0)) != 0
 DEBUG_BREAK = int(os.getenv("DEBUG_BREAK", 0)) != 0
 DEBUG_DECISIONS = int(os.getenv("DEBUG_DECISIONS", 0))
+DEBUG_DECISIONS2 = int(os.getenv("DEBUG_DECISIONS2", 10000))
+CACHE_TTL = 5
 
 DECISION_QUEUE_FILE = os.path.join(DATA_DIR, "queue.json")
 DECISION_QUEUE_INTERVAL = int(os.getenv("DECISION_QUEUE_INTERVAL", 5))
@@ -149,7 +152,7 @@ def match_and_check(item: dict) -> dict | None:
     show_titles = []
     id_is_monitored = {}
 
-    for _s in sonarr.get_series():
+    for _s in timed_cache(ttl=CACHE_TTL)(sonarr.get_series)():
         show_titles.append((_s["title"], _s["id"]))
         id_is_monitored[_s["id"]] = _s["monitored"]
 
@@ -157,9 +160,6 @@ def match_and_check(item: dict) -> dict | None:
     matched_id = 0
 
     main_title = f"{item.get('creator', '')} :: {item.get('title', '')}"
-
-    s_hint, e_hint, substr = extract_episode_hint(main_title)
-    _log.msg(f"s_hint: {s_hint}\ne_hint: {e_hint}\nsubstr: {substr}")
 
     title_result = match_to_show(main_title, show_titles)
     item["title_result"] = title_result
@@ -179,8 +179,8 @@ def match_and_check(item: dict) -> dict | None:
         _log.msg(f"Series title match {_log._RED}not good enough.{_log._RESET}")
 
     sonarr_relevant_tags = [
-        sonarr.get_tag_detail(_tag.get("id"))
-        for _tag in sonarr.get_tag()
+        timed_cache(ttl=CACHE_TTL)(sonarr.get_tag_detail)(_tag.get("id"))
+        for _tag in timed_cache(ttl=CACHE_TTL)(sonarr.get_tag)()
         if _tag.get("label").startswith("wai-")
     ]
     sonarr_relevant_tags = {
@@ -205,16 +205,29 @@ def match_and_check(item: dict) -> dict | None:
     episode_result = {}
 
     for candidate_series_id in candidate_series_ids:
-        _series_name = sonarr.get_series(candidate_series_id, {}).get("title", "")
+        _series_name = timed_cache(ttl=CACHE_TTL)(sonarr.get_series)(
+            candidate_series_id, {}
+        ).get("title", "")
         _log.msg(
             f"Scan episodes of candidate series: {candidate_series_id} ({_series_name})"
         )
 
-        for _ep in sonarr.get_episode(candidate_series_id, True):
+        for _ep in timed_cache(ttl=CACHE_TTL)(sonarr.get_episode)(
+            candidate_series_id, True
+        ):
             if HONOR_UNMON_EPS and not _ep["monitored"]:
                 continue
 
             _ep["series"] = _series_name
+            _tag = next(
+                (
+                    __key
+                    for __key, __value in sonarr_relevant_tags.items()
+                    if _ep["seriesId"] in __value
+                ),
+                None,
+            )
+
             show_data.append(
                 {
                     "has_file": _ep["hasFile"],
@@ -223,6 +236,7 @@ def match_and_check(item: dict) -> dict | None:
                     "season": _ep["seasonNumber"],
                     "episode": _ep["episodeNumber"],
                     "episode_id": _ep["id"],
+                    "tag": _tag,
                     "title": _ep["title"],
                     "air_date": _ep.get("airDate", ""),
                     "air_date_utc": _ep.get("airDateUtc", ""),
@@ -249,6 +263,11 @@ def match_and_check(item: dict) -> dict | None:
     )
 
     if episode_result["score"] < DEBUG_DECISIONS:
+        breakpoint()
+    if episode_result["score"] > DEBUG_DECISIONS2:
+        breakpoint()
+
+    if "dates" in episode_result["reason"]:
         breakpoint()
 
     if episode_result["score"] < 70:
