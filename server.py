@@ -1,6 +1,7 @@
 # server.py
 
 import fauxlogger as _log
+import thread_manager
 from fastapi import FastAPI, Query, Request
 
 fastapi = FastAPI()
@@ -55,6 +56,36 @@ async def api_notify(
         }
     )
     return {"status": "queued"}
+
+
+@fastapi.post("/api/stop_decision_manager")
+async def api_stop_dqm():
+    thread_manager.stop_decision_queue_manager()
+
+
+@fastapi.post("/api/stop_aging_manager")
+async def api_stop_aqm():
+    thread_manager.stop_aging_queue_manager()
+
+
+@fastapi.post("/api/stop_download_manager")
+async def api_stop_dlqm():
+    thread_manager.stop_download_queue_manager()
+
+
+@fastapi.post("/api/start_decision_manager")
+async def api_start_dqm():
+    thread_manager.start_decision_queue_manager()
+
+
+@fastapi.post("/api/start_aging_manager")
+async def api_start_aqm():
+    thread_manager.start_aging_queue_manager()
+
+
+@fastapi.post("/api/start_download_manager")
+async def api_start_dlqm():
+    thread_manager.start_download_queue_manager()
 
 
 @fastapi.post("/enqueue")
