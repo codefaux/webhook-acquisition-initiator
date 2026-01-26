@@ -1,7 +1,7 @@
 # server.py
 
 import fauxlogger as _log
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 
 fastapi = FastAPI()
 
@@ -35,6 +35,26 @@ def handle_remove(from_file: str, item: str):
         return
 
     remove_json_item(from_file, item)
+
+
+@fastapi.post("/api/notify")
+async def api_notify(
+    creator: str = Query(...),
+    title: str = Query(...),
+    datecode: str = Query(...),
+    url: str = Query(...),
+):
+    from decision_queue_manager import enqueue as enqueue_decision
+
+    enqueue_decision(
+        {
+            "creator": creator.strip(),
+            "title": title.strip(),
+            "datecode": datecode.strip(),
+            "url": url.strip(),
+        }
+    )
+    return {"status": "queued"}
 
 
 @fastapi.post("/enqueue")
