@@ -2,15 +2,12 @@
 
 import os
 import signal
-import threading
 import time
 
 import fauxlogger as _log
+import thread_manager
 import uvicorn
-from aging_queue_manager import process_queue as process_aging_queue
 from cfsonarr import validate_sonarr_config
-from decision_queue_manager import process_queue as process_decision_queue
-from download_queue_manager import process_queue as process_download_queue
 from server import fastapi
 
 # Load configuration from environment variables
@@ -31,43 +28,6 @@ if not SONARR_URL or not API_KEY:
 
 if not SONARR_IN_PATH:
     raise RuntimeError("SONARR_IN_PATH must be set.")
-
-stop_event = threading.Event()
-
-
-def handle_exit_signal(signum, frame):
-    _log.msg(f"\nCaught signal {signum}, shutting down gracefully...")
-    stop_event.set()
-
-
-def start_decision_queue_processor():
-    decision_queue_thread = threading.Thread(
-        target=process_decision_queue,
-        args=(stop_event,),
-        daemon=True,
-        name="decision_queue",
-    )
-    decision_queue_thread.start()
-    return decision_queue_thread
-
-
-def start_download_queue_processor():
-    dl_queue_thread = threading.Thread(
-        target=process_download_queue,
-        args=(stop_event,),
-        daemon=True,
-        name="download_queue",
-    )
-    dl_queue_thread.start()
-    return dl_queue_thread
-
-
-def start_aging_queue_processor():
-    aging_queue_thread = threading.Thread(
-        target=process_aging_queue, args=(stop_event,), daemon=True, name="aging_queue"
-    )
-    aging_queue_thread.start()
-    return aging_queue_thread
 
 
 if __name__ == "__main__":
@@ -118,24 +78,12 @@ if __name__ == "__main__":
 
     # Register graceful shutdown signals
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
-        signal.signal(sig, handle_exit_signal)
-
-    decision_queue_thread = (
-        start_decision_queue_processor() if RUN_DECISION_QUEUE else threading.Thread()
-    )
-    aging_queue_thread = (
-        start_aging_queue_processor() if RUN_AGING_QUEUE else threading.Thread()
-    )
-    download_queue_thread = (
-        start_download_queue_processor() if RUN_DOWNLOAD_QUEUE else threading.Thread()
-    )
+        signal.signal(sig, thread_manager.handle_exit_signal)
 
     try:
+        thread_manager.startup(RUN_DECISION_QUEUE, RUN_AGING_QUEUE, RUN_DOWNLOAD_QUEUE)
         uvicorn.run(fastapi, host="0.0.0.0", port=8000)
     finally:
-        stop_event.set()
-        decision_queue_thread.join()
-        aging_queue_thread.join()
-        download_queue_thread.join()
+        thread_manager.shutdown()
 
         _log.msg("Shutdown complete.")
