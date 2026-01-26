@@ -10,8 +10,6 @@ anyio==4.9.0
     # via starlette
 certifi==2026.1.4
     # via requests
-cfsonarr @ git+https://github.com/codefaux/python-cfsonarr@main
-    # via -r requirements.in
 cfsonarrmatcher @ git+https://github.com/codefaux/python-cfsonarr-matcher@main
     # via -r requirements.in
 charset-normalizer==3.4.4
@@ -21,7 +19,9 @@ click==8.2.1
 fastapi==0.115.12
     # via -r requirements.in
 fauxjson @ git+https://github.com/codefaux/python-fauxjson@main
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   cfsonarrmatcher
 fauxlogger @ git+https://github.com/codefaux/python-fauxlogger@main
     # via
     #   -r requirements.in
