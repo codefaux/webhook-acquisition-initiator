@@ -59,9 +59,12 @@ def time_distance_score(
     return int(score)
 
 
-def get_next_aging_time() -> int:
+def get_next_aging_time(aging_item: dict) -> int:
     return int(
-        (datetime.now() + timedelta(hours=(24 / AGING_RIPENESS_PER_DAY))).timestamp()
+        (
+            datetime.now()
+            + timedelta(minutes=min(15 * (2 ** aging_item["ripeness"]), 120))
+        ).timestamp()
     )
 
 

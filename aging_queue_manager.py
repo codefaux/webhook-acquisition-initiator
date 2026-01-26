@@ -55,7 +55,7 @@ def aging_enqueue(aging_item: dict) -> None:
 
     if aging_item.get("ripeness", -1) == -1:
         aging_item["ripeness"] = get_new_ripeness(aging_item)
-        aging_item["next_aging"] = get_next_aging_time()
+        aging_item["next_aging"] = get_next_aging_time(aging_item)
 
     with aging_queue_condition:
         aging_queue.append(aging_item)
@@ -133,7 +133,7 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
 
                 refresh_series(aging_item["title_result"]["matched_id"])
                 aging_item["ripeness"] += 1
-                aging_item["next_aging"] = get_next_aging_time()
+                aging_item["next_aging"] = get_next_aging_time(aging_item)
                 _ = close_aging_item(
                     aging_item,
                     "Requesting Sonarr refresh for '"
