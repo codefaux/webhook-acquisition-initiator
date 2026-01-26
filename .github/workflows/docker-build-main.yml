@@ -12,6 +12,7 @@ on:
       - 'decision_queue_manager.py'
       - 'download_queue_manager.py'
       - 'aging_queue_manager.py'
+      - 'thread_manager.py'
       - 'requirements.txt'
       - 'server.py'
       - 'util.py'
