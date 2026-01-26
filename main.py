@@ -60,8 +60,12 @@ if __name__ == "__main__":
             "DEBUG_BREAK",
             "DEBUG_DECISIONS",
         ]
-        for varname in env_vars:
-            _log.msg(f"{varname}: {os.getenv(varname)} \n")
+        vardump: list[str] = ["Environment vars:"]
+        vardump.extend(
+            f"- {_log._BLUE}{varname}{_log._RESET}: {_log._GREEN}{os.getenv(varname)}{_log._RESET}"
+            for varname in env_vars
+        )
+        _log.msg(vardump)
 
     retries = 0
     while retries < 5:
