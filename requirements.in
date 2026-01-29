@@ -8,5 +8,6 @@ langid
 fauxjson @ git+https://github.com/codefaux/python-fauxjson@main
 fauxcache @ git+https://github.com/codefaux/python-fauxcache@main
 fauxlogger @ git+https://github.com/codefaux/python-fauxlogger@main
+cfsonarr @ git+https://github.com/codefaux/python-cfsonarr@main
 cfsonarrmatcher @ git+https://github.com/codefaux/python-cfsonarr-matcher@main
 pyarr

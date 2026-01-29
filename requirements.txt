@@ -10,6 +10,8 @@ anyio==4.9.0
     # via starlette
 certifi==2026.1.4
     # via requests
+cfsonarr @ git+https://github.com/codefaux/python-cfsonarr@main
+    # via -r requirements.in
 cfsonarrmatcher @ git+https://github.com/codefaux/python-cfsonarr-matcher@main
     # via -r requirements.in
 charset-normalizer==3.4.4
