@@ -4,6 +4,7 @@ import time
 import fauxlogger as _log
 import yt_dlp
 import yt_dlp.options
+from yt_dlp.utils import DownloadError
 
 CONF_DIR = os.getenv("CONF_DIR") or "./conf"
 netrc_file = os.path.join(CONF_DIR, "netrc")
@@ -78,6 +79,25 @@ def cli_to_api(opts: list, cli_defaults: bool = False) -> dict:
     return diff
 
 
+# Anti-stall vars
+dl_last_bytes = 0
+dl_last_change = time.time()
+
+
+def anti_stall(info):
+
+    global dl_last_bytes, dl_last_change
+
+    if info["status"] == "downloading":
+        downloaded = info.get("downloaded_bytes", 0)
+
+        if downloaded != dl_last_bytes:
+            dl_last_bytes = downloaded
+            dl_last_change = time.time()
+        elif time.time() - dl_last_change > 20:
+            raise DownloadError("Anti-Stall: No progress detected")
+
+
 def download_video(video_url: str, target_folder: str) -> str | None:
     """Download a video using the yt_dlp Python API into the target folder.
     Returns the destination file path or None on failure.
@@ -86,16 +106,27 @@ def download_video(video_url: str, target_folder: str) -> str | None:
 
     ensure_dir(target_folder)
 
-    ydl_opts: dict = {
-        "progress_hooks": [ytdlp_progress_hook],
-        "noplaylist": True,
-        # "verbose": True,
-        # "no_warnings": True,
-        # "ignoreerrors": True,
-        "writeinfojson": True,
+    ydl_opts = {
         "logger": YTDLQuietLogger(),
+        "subtitleslangs": ["en", "-live_chat"],
+        "progress_hooks": [anti_stall, ytdlp_progress_hook],
+        "retries": 2,
+        "sleep_interval": 60,
+        "socket_timeout": 23,
+        "fragment_retries": 2,
         "ratelimit": 5_000_000,
-        "concurrent_fragments": 3,
+        "throttled_rate": 102400,
+        "max_sleep_interval": 180,
+        "concurrent_fragments": 2,
+        "sleep_interval_requests": 1,
+        "concurrent_fragment_downloads": 2,
+        "nopart": False,
+        "continuedl": True,
+        "noplaylist": True,
+        "writeinfojson": True,
+        "writethumbnail": True,
+        "restrictfilenames": True,
+        "writeplaylistmetafiles": True,
     }
 
     if using_ytdlpconf:
