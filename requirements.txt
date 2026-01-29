@@ -18,6 +18,8 @@ click==8.2.1
     # via uvicorn
 fastapi==0.115.12
     # via -r requirements.in
+fauxcache @ git+https://github.com/codefaux/python-fauxcache@main
+    # via -r requirements.in
 fauxjson @ git+https://github.com/codefaux/python-fauxjson@main
     # via
     #   -r requirements.in
@@ -57,6 +59,8 @@ rapidfuzz==3.13.0
     # via
     #   -r requirements.in
     #   cfsonarrmatcher
+regex==2026.1.15
+    # via cfsonarrmatcher
 requests==2.32.5
     # via pyarr
 six==1.17.0
