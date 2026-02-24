@@ -24,6 +24,7 @@ OVERWRITE_EPS = int(os.getenv("OVERWRITE_EPS", 0)) == 1
 FLIP_FLOP_QUEUE = int(os.getenv("FLIP_FLOP_QUEUE", 0)) == 1
 DEBUG_PRINT = int(os.getenv("DEBUG_PRINT", 0)) != 0
 DEBUG_BREAK = int(os.getenv("DEBUG_BREAK", 0)) != 0
+DEBUG_SAFE = int(os.getenv("DEBUG_SAFE", 0)) != 0
 DEBUG_DECISIONS = int(os.getenv("DEBUG_DECISIONS", 0))
 DEBUG_DECISIONS2 = int(os.getenv("DEBUG_DECISIONS2", 10000))
 CACHE_TTL = 5
@@ -262,12 +263,12 @@ def match_and_check(item: dict) -> dict | None:
         f"\t{_log._YELLOW}reasons:{_log._RESET} {episode_result.get('reason', '')}"
     )
 
-    if episode_result["score"] < DEBUG_DECISIONS:
+    if DEBUG_SAFE and (episode_result["score"] < DEBUG_DECISIONS):
         breakpoint()
-    if episode_result["score"] > DEBUG_DECISIONS2:
+    if DEBUG_SAFE and (episode_result["score"] > DEBUG_DECISIONS2):
         breakpoint()
 
-    if "dates" in episode_result["reason"]:
+    if DEBUG_SAFE and ("dates" in episode_result["reason"]):
         breakpoint()
 
     if episode_result["score"] < 70:
