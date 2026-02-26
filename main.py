@@ -16,9 +16,6 @@ CONF_DIR = os.getenv("CONF_DIR") or "./conf"
 SONARR_URL = os.getenv("SONARR_URL")
 API_KEY = os.getenv("SONARR_API")
 SONARR_IN_PATH = os.getenv("SONARR_IN_PATH")
-RUN_DECISION_QUEUE = int(os.getenv("RUN_DECISION_QUEUE", 1)) == 1
-RUN_AGING_QUEUE = int(os.getenv("RUN_AGING_QUEUE", 1)) == 1
-RUN_DOWNLOAD_QUEUE = int(os.getenv("RUN_DOWNLOAD_QUEUE", 1)) == 1
 DEBUG_PRINT = int(os.getenv("DEBUG_PRINT", 0)) == 1
 
 if not SONARR_URL or not API_KEY:
@@ -85,7 +82,7 @@ if __name__ == "__main__":
         signal.signal(sig, thread_manager.handle_exit_signal)
 
     try:
-        thread_manager.startup(RUN_DECISION_QUEUE, RUN_AGING_QUEUE, RUN_DOWNLOAD_QUEUE)
+        thread_manager.startup()
         uvicorn.run(fastapi, host="0.0.0.0", port=8000)
     finally:
         thread_manager.shutdown()

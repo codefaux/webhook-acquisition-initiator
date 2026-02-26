@@ -109,6 +109,7 @@ def recheck_episode_match(item: dict) -> dict | None:
 def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
     from cfsonarr import refresh_series
     from decision_queue_manager import enqueue as enqueue_decision
+    from manual_intervention_manager import enqueue as mi_enqueue
     from util import get_new_ripeness, get_next_aging_time
 
     if aging_item.get("ripeness", -1) == -1:
@@ -148,12 +149,9 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
         _log.msg(
             f"Ripeness {aging_item["ripeness"]}: Item should be old enough for data."
         )
-        return False, close_aging_item(
-            aging_item,
-            "Moving to manual intervention queue.",
-            "manual_intervention.json",
-            subdir="history",
-        )
+        mi_enqueue(aging_item)
+
+        return False, None
 
 
 def process_queue(stop_event: threading.Event):

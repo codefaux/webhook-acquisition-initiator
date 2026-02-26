@@ -11,3 +11,4 @@ fauxlogger @ git+https://github.com/codefaux/python-fauxlogger@main
 cfsonarr @ git+https://github.com/codefaux/python-cfsonarr@main
 cfsonarrmatcher @ git+https://github.com/codefaux/python-cfsonarr-matcher@main
 pyarr
+python-telegram-bot
