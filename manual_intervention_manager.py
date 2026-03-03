@@ -18,8 +18,9 @@ MI_QUEUE_FILE: Final[str] = os.path.join(DATA_DIR, "manual_intervention.json")
 mi_queue_lock: Final = threading.Lock()
 mi_queue_notify_event: Final = threading.Event()
 
-type mi_dict_type = dict[str, dict[str, int | str]]
-type mi_tuple_type = tuple[str, dict[str, int | str]]
+type mi_inner_type = dict[str, int | str | dict[str, int | str]]
+type mi_dict_type = dict[str, mi_inner_type]
+type mi_tuple_type = tuple[str, mi_inner_type]
 type mi_tuple_type_n = mi_tuple_type | None
 
 mi_queue: mi_dict_type = {}
@@ -48,7 +49,7 @@ def save_mi_queue():
         json.dump(mi_queue, f, indent=2)
 
 
-def enqueue(mi_data: dict[str, int | str]) -> None:
+def enqueue(mi_data: mi_inner_type) -> None:
     global mi_current
     if len(mi_queue) == 0:
         load_mi_queue()
