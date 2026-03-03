@@ -50,7 +50,9 @@ def load_known_chats():
                 )
 
 
-def mi_data_to_message(mi_data: mi_tuple_type, header: str | None = None) -> str:
+def mi_data_to_detailed_message(
+    mi_data: mi_tuple_type, header: str | None = None
+) -> str:
     _val: str = (
         f"{header}\n"
         f"UUID: {mi_data[0]}\n"
@@ -70,9 +72,32 @@ def mi_data_to_message(mi_data: mi_tuple_type, header: str | None = None) -> str
     _ep_res = mi_data[1].get("episode_result")
     if _ep_res and isinstance(_ep_res, dict):
         _val += (
-            "Episode Result:\n"
+            "Closest Episode Result:\n"
             f"- Input: {_ep_res.get("input")}\n"
             f"- Season: {_ep_res.get("season")}\n"
+            f"- Episode: {_ep_res.get("episode]")}\n"
+            f"- Title: {_ep_res.get("episode_title")}\n"
+            f"- Score: {_ep_res.get("score")}\n"
+            f"- Reason:\n<code>\n{_ep_res.get("reason")}\n</code>\n\n"
+        )
+
+    return _val
+
+
+def mi_data_to_short_message(mi_data: mi_tuple_type, header: str | None = None) -> str:
+    _val: str = (
+        f"{header}\n" f"UUID: {mi_data[0]}\n" f"URL: {mi_data[1].get("url")} \n\n"
+    )
+
+    _title_res = mi_data[1].get("title_result")
+    if _title_res and isinstance(_title_res, dict):
+        _val += " Matched to show. "
+    _ep_res = mi_data[1].get("episode_result")
+    if _ep_res and isinstance(_ep_res, dict):
+        _val += (
+            "Closest Episode Result:\n"
+            f"- Input: {_ep_res.get("input")}\n"
+            f"- Season: {_ep_res.get("season")} "
             f"- Episode: {_ep_res.get("episode]")}\n"
             f"- Title: {_ep_res.get("episode_title")}\n"
             f"- Score: {_ep_res.get("score")}\n"
@@ -164,7 +189,8 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 _idx += 1
                 _data: mi_tuple_type = (_key, _item)
                 await update.effective_message.reply_text(
-                    mi_data_to_message(_data, f"Item {_idx}:"), parse_mode="HTML"
+                    mi_data_to_short_message(_data, f"Item {_idx}:"),
+                    parse_mode="HTML",
                 )
         else:
             await update.effective_message.reply_text(f"Usage: {_cmd}")
@@ -229,7 +255,7 @@ async def send_to_known(message: str):
 
 def mi_notify_callback(mi_data: mi_tuple_type) -> None:
     _uuid = mi_data[0]
-    _message = mi_data_to_message(mi_data, "New item: ")
+    _message = mi_data_to_detailed_message(mi_data, "New item: ")
 
     if loop and app:
         asyncio.run_coroutine_threadsafe(
