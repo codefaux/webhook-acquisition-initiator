@@ -22,13 +22,15 @@ DATA_DIR: str = os.getenv("DATA_DIR") or "./data"
 KNOWN_CHATS_FILE: Final[str] = os.path.join(DATA_DIR, "known_chats.json")
 known_chats = set()
 
+RUN_TELEGRAM_BOT = int(os.getenv("RUN_TELEGRAM_BOT", 1)) == 1
+
 TELEGRAM_BOT_TOKEN: Final = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID: Final = os.getenv("TELEGRAM_CHAT_ID")
 
 app: Application | None = None
 loop: asyncio.AbstractEventLoop | None = None
 
-if not TELEGRAM_BOT_TOKEN:
+if RUN_TELEGRAM_BOT and not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("Missing TELEGRAM_BOT_TOKEN environment variable")
 
 
