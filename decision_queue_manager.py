@@ -107,6 +107,7 @@ def diagnose_show_score(item: dict) -> dict | None:
 
 def diagnose_episode_score(item: dict) -> dict | None:
     from aging_queue_manager import aging_enqueue
+    from manual_intervention_manager import enqueue as mi_enqueue
     from util import get_new_ripeness
 
     # airdate; issue: too new, Sonarr metadata not updated?
@@ -128,12 +129,8 @@ def diagnose_episode_score(item: dict) -> dict | None:
     else:
         _log.msg(f"Ripeness {ripeness}: Item should be old enough for data")
 
-    return close_item(
-        item,
-        "Moving to manual intervention queue.",
-        "manual_intervention.json",
-        subdir="history",
-    )
+    mi_enqueue(item)
+    return None
 
 
 def match_and_check(item: dict) -> dict | None:
