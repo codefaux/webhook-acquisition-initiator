@@ -171,17 +171,22 @@ def mi_notify_callback(mi_data: mi_tuple_type) -> None:
     _uuid = mi_data[0]
     _data = mi_data[1]
 
-    _ = send_to_known(f"uuid: {_uuid}\ndata: {_data}")
+    if loop and app:
+        asyncio.run_coroutine_threadsafe(
+            send_to_known(f"uuid: {_uuid}\ndata: {_data}"),
+            loop,
+        )
     return
 
 
 async def bot_start(stop_event: threading.Event):
-    global app
+    global app, loop
 
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("Missing TELEGRAM_BOT_TOKEN environment variable")
 
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    loop = asyncio.get_running_loop()
 
     load_known_chats()
     add_mi_notify(mi_notify_callback)
