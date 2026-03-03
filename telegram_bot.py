@@ -10,6 +10,7 @@ from manual_intervention_manager import (get_mi_queue, mi_dict_type,
                                          mi_tuple_type)
 from manual_intervention_manager import \
     remove_notify_listener as remove_mi_notify
+# from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import Update
 from telegram.ext import (Application, CommandHandler, ContextTypes,
                           MessageHandler, filters)
@@ -133,12 +134,22 @@ async def remove_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message:
+        # _keyboard = [
+        #     [
+        #         InlineKeyboardButton(
+        #             text="List Items",
+        #             switch_inline_query_current_chat="/list",
+        #         )
+        #     ]
+        # ]
+
         await update.message.reply_text(
             "Hello! I'm alive.\n"
             "Available commands:\n"
             "/echo <text> - Echo back text\n"
             "/list - List items for intervention\n"
-            "/help - Show help"
+            "/help - Show help",
+            # reply_markup=InlineKeyboardMarkup(_keyboard),
         )
     if update.channel_post:
         await update.channel_post.reply_text(
