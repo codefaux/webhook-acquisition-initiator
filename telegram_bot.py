@@ -26,7 +26,7 @@ TELEGRAM_BOT_TOKEN: Final = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID: Final = os.getenv("TELEGRAM_CHAT_ID")
 
 app: Application | None = None
-# app_loop: asyncio.AbstractEventLoop | None = None
+loop: asyncio.AbstractEventLoop | None = None
 
 if not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("Missing TELEGRAM_BOT_TOKEN environment variable")
