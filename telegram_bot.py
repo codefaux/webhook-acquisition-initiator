@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import threading
 from typing import Final
 
@@ -205,6 +206,72 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.effective_message.reply_text(f"Usage: {_cmd}")
 
 
+def extract_uuid(message_text: str | None) -> str | None:
+    line_pattern = r"^UUID:\s*([0-9a-f-]{36})$"
+    arg_pattern = r"([0-9a-f-]{36})"
+
+    if message_text:
+        match_line = re.search(line_pattern, message_text, re.MULTILINE | re.IGNORECASE)
+        if match_line:
+            return match_line.group(1)
+        match_arg = re.search(arg_pattern, message_text, re.IGNORECASE)
+        if match_arg:
+            return match_arg.group(1)
+
+    return None
+
+
+async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message:
+        message = update.message
+    elif update.channel_post:
+        message = update.channel_post
+    else:
+        return
+
+    _cmd = "/detail"
+    _args = None
+    _reply_uuid = None
+
+    if context.args:
+        _args = " ".join(context.args)
+    elif (
+        update.effective_message
+        and update.effective_message.text
+        and update.effective_message.text.startswith(_cmd)
+    ):
+        _args = update.effective_message.text.removeprefix(_cmd).strip()
+
+    if message.reply_to_message:
+        if (
+            message.reply_to_message.author_signature
+            and message.reply_to_message.author_signature == context.bot.first_name
+        ):
+            _reply_uuid = extract_uuid(message.reply_to_message.text)
+    elif _args:
+        if _args == "all":
+            _reply_uuid = "all"
+        else:
+            _reply_uuid = extract_uuid(_args)
+
+    if _reply_uuid:
+        _queue: mi_dict_type = get_mi_queue()
+        _idx = 0
+        for _key, _item in _queue.items():
+            _idx += 1
+            _data: mi_tuple_type = (_key, _item)
+            if _key.lower() == _reply_uuid.lower():
+                await message.reply_text(
+                    mi_data_to_detailed_message(_data, f"Item {_idx}:"),
+                    parse_mode="HTML",
+                )
+    else:
+        await message.reply_text(
+            f"Usage: <code>{_cmd}</code> as reply to target, or <code>{_cmd} UUID</code>",
+            parse_mode="HTML",
+        )
+
+
 async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _cmd = "/echoall"
     _args = None
@@ -294,6 +361,7 @@ async def bot_start(stop_event: threading.Event):
         "echo": _echo,
         "echoall": _echo,
         "list": _list,
+        "detail": _detail,
     }
 
     for _cmd, _func in cmd_dict.items():
