@@ -130,7 +130,12 @@ def diagnose_episode_score(item: dict) -> dict | None:
         _log.msg(f"Ripeness {ripeness}: Item should be old enough for data")
 
     mi_enqueue(item)
-    return None
+    return close_item(
+        item,
+        "Moved to manual intervention queue.",
+        "manual_intervention.json",
+        subdir="history",
+    )
 
 
 def match_and_check(item: dict) -> dict | None:
