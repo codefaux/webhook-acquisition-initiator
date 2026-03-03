@@ -211,7 +211,7 @@ async def bot_start(stop_event: threading.Event):
     await app.start()
 
     # while True:
-    while not stop_event:
+    while not stop_event.is_set():
         # exiting from this loop will make the bot exit
         await asyncio.sleep(1)
     # dropped from the loop, shutdown
