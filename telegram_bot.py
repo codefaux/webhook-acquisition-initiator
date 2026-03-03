@@ -6,7 +6,8 @@ from typing import Final
 
 import fauxlogger as _log
 from manual_intervention_manager import add_notify_listener as add_mi_notify
-from manual_intervention_manager import mi_tuple_type
+from manual_intervention_manager import (get_mi_queue, mi_dict_type,
+                                         mi_tuple_type)
 from manual_intervention_manager import \
     remove_notify_listener as remove_mi_notify
 from telegram import Update
@@ -47,6 +48,38 @@ def load_known_chats():
                 )
 
 
+def mi_data_to_message(mi_data: mi_tuple_type, header: str | None = None) -> str:
+    _val: str = (
+        f"{header}\n"
+        f"UUID: {mi_data[0]}\n"
+        f"Creator: {mi_data[1].get("creator")}\n"
+        f"Title: {mi_data[1].get("title")}\n"
+        f"Datecode: {mi_data[1].get("datecode")}\n"
+        f"URL: {mi_data[1].get("url")} \n\n"
+    )
+
+    _title_res = mi_data[1].get("title_result")
+    if _title_res and isinstance(_title_res, dict):
+        _val += (
+            "Title Result:\n"
+            f"- Show: {_title_res.get("matched_show")}\n"
+            f"- Score: {_title_res.get("score")}\n\n"
+        )
+    _ep_res = mi_data[1].get("episode_result")
+    if _ep_res and isinstance(_ep_res, dict):
+        _val += (
+            "Episode Result:\n"
+            f"- Input: {_ep_res.get("input")}\n"
+            f"- Season: {_ep_res.get("season")}\n"
+            f"- Episode: {_ep_res.get("episode]")}\n"
+            f"- Title: {_ep_res.get("episode_title")}\n"
+            f"- Score: {_ep_res.get("score")}\n"
+            f"- Reason:\n<code>\n{_ep_res.get("reason")}\n</code>\n\n"
+        )
+
+    return _val
+
+
 def save_known_chats():
     global known_chats
     with open(KNOWN_CHATS_FILE, "w") as f:
@@ -77,6 +110,7 @@ async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Hello! I'm alive.\n"
             "Available commands:\n"
             "/echo <text> - Echo back text\n"
+            "/list - List items for intervention\n"
             "/help - Show help"
         )
     if update.channel_post:
@@ -84,6 +118,7 @@ async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Hello! I'm alive.\n"
             "Available commands:\n"
             "/echo <text> - Echo back text\n"
+            "/list - List items for intervention\n"
             "/help - Show help"
         )
 
@@ -105,6 +140,32 @@ async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.effective_message.reply_text(_args)
         else:
             await update.effective_message.reply_text(f"Usage: {_cmd} <text>")
+
+
+async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    _cmd = "/list"
+    _args = None
+    if context.args:
+        _args = " ".join(context.args)
+    elif (
+        update.effective_message
+        and update.effective_message.text
+        and update.effective_message.text.startswith(_cmd)
+    ):
+        _args = update.effective_message.text.removeprefix(_cmd).strip()
+
+    if update.effective_message:
+        if not _args:
+            _queue: mi_dict_type = get_mi_queue()
+            _idx = 0
+            for _key, _item in _queue.items():
+                _idx += 1
+                _data: mi_tuple_type = (_key, _item)
+                await update.effective_message.reply_text(
+                    mi_data_to_message(_data, f"Item {_idx}:"), parse_mode="HTML"
+                )
+        else:
+            await update.effective_message.reply_text(f"Usage: {_cmd}")
 
 
 async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -156,10 +217,7 @@ async def send_message(text: str, chat_id: str | None):
         raise RuntimeError("No chat_id provided and TELEGRAM_DEFAULT_CHAT_ID not set")
 
     if app:
-        await app.bot.send_message(
-            chat_id=target_chat_id,
-            text=text,
-        )
+        await app.bot.send_message(chat_id=target_chat_id, text=text)
 
 
 async def send_to_known(message: str):
@@ -169,11 +227,11 @@ async def send_to_known(message: str):
 
 def mi_notify_callback(mi_data: mi_tuple_type) -> None:
     _uuid = mi_data[0]
-    _data = mi_data[1]
+    _message = mi_data_to_message(mi_data, "New item: ")
 
     if loop and app:
         asyncio.run_coroutine_threadsafe(
-            send_to_known(f"uuid: {_uuid}\ndata: {_data}"),
+            send_to_known(f"uuid: {_uuid}\ndata: {_message}"),
             loop,
         )
     return
@@ -204,6 +262,9 @@ async def bot_start(stop_event: threading.Event):
 
     app.add_handler(CommandHandler("stop", remove_known_chat), group=1)
     app.add_handler(MessageHandler(filters.Regex("^/stop"), remove_known_chat), group=1)
+
+    app.add_handler(CommandHandler("list", _list), group=1)
+    app.add_handler(MessageHandler(filters.Regex("^/list"), _list), group=1)
 
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, _check_reply), group=2
