@@ -57,7 +57,7 @@ def mi_data_to_detailed_message(
 ) -> str:
     _val: str = (
         f"{header}\n"
-        f"UUID: {mi_data[0]}\n"
+        f"UUID: <code>{mi_data[0]}</code>\n"
         f"Creator: {mi_data[1].get("creator")}\n"
         f"Title: {mi_data[1].get("title")}\n"
         f"Datecode: {mi_data[1].get("datecode")}\n"
@@ -88,7 +88,9 @@ def mi_data_to_detailed_message(
 
 def mi_data_to_short_message(mi_data: mi_tuple_type, header: str | None = None) -> str:
     _val: str = (
-        f"{header}\n" f"UUID: {mi_data[0]}\n" f"URL: {mi_data[1].get("url")} \n\n"
+        f"{header}\n"
+        f"UUID: <code>{mi_data[0]}</code>\n"
+        f"URL: {mi_data[1].get("url")} \n\n"
     )
 
     _title_res = mi_data[1].get("title_result")
