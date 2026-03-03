@@ -296,7 +296,7 @@ async def bot_start(stop_event: threading.Event):
         "list": _list,
     }
 
-    for _cmd, _func in cmd_dict:
+    for _cmd, _func in cmd_dict.items():
         app.add_handler(CommandHandler(_cmd, _func), group=1)
         app.add_handler(MessageHandler(filters.Regex(f"^/{_cmd}"), _func), group=1)
 
