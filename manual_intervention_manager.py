@@ -4,7 +4,7 @@ import json
 import os
 import threading
 from typing import Callable, Final
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import fauxlogger as _log
 
@@ -18,8 +18,8 @@ MI_QUEUE_FILE: Final[str] = os.path.join(DATA_DIR, "manual_intervention.json")
 mi_queue_lock: Final = threading.Lock()
 mi_queue_notify_event: Final = threading.Event()
 
-type mi_dict_type = dict[UUID, dict[str, int | str]]
-type mi_tuple_type = tuple[UUID, dict[str, int | str]]
+type mi_dict_type = dict[str, dict[str, int | str]]
+type mi_tuple_type = tuple[str, dict[str, int | str]]
 type mi_tuple_type_n = mi_tuple_type | None
 
 mi_queue: mi_dict_type = {}
@@ -53,7 +53,7 @@ def enqueue(mi_data: dict[str, int | str]) -> None:
     if len(mi_queue) == 0:
         load_mi_queue()
 
-    _uuid = uuid4()
+    _uuid = str(uuid4())
 
     with mi_queue_lock:
         mi_queue[_uuid] = mi_data
