@@ -279,20 +279,17 @@ async def bot_start(stop_event: threading.Event):
 
     app.add_handler(MessageHandler(filters.ALL, track_known_chats), group=0)
 
-    app.add_handler(CommandHandler("echoall", _echo_all), group=1)
-    app.add_handler(MessageHandler(filters.Regex("^/echoall"), _echo_all), group=1)
+    cmd_dict: dict = {
+        "start": _start,
+        "stop": remove_known_chat,
+        "echo": _echo,
+        "echoall": _echo,
+        "list": _list,
+    }
 
-    app.add_handler(CommandHandler("echo", _echo), group=1)
-    app.add_handler(MessageHandler(filters.Regex("^/echo"), _echo), group=1)
-
-    app.add_handler(CommandHandler("start", _start), group=1)
-    app.add_handler(MessageHandler(filters.Regex("^/start"), _start), group=1)
-
-    app.add_handler(CommandHandler("stop", remove_known_chat), group=1)
-    app.add_handler(MessageHandler(filters.Regex("^/stop"), remove_known_chat), group=1)
-
-    app.add_handler(CommandHandler("list", _list), group=1)
-    app.add_handler(MessageHandler(filters.Regex("^/list"), _list), group=1)
+    for _cmd, _func in cmd_dict:
+        app.add_handler(CommandHandler(_cmd, _func), group=1)
+        app.add_handler(MessageHandler(filters.Regex(f"^/{_cmd}"), _func), group=1)
 
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, _check_reply), group=2
