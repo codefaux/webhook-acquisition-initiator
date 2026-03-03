@@ -94,13 +94,12 @@ def mi_data_to_short_message(mi_data: mi_tuple_type, header: str | None = None) 
     )
 
     _title_res = mi_data[1].get("title_result")
-    if _title_res and isinstance(_title_res, dict):
-        _val += " Matched to show. "
     _ep_res = mi_data[1].get("episode_result")
     if _ep_res and isinstance(_ep_res, dict):
         _val += (
             "Closest Episode Result:\n"
             f"- Input: {_ep_res.get("input")}\n"
+            f"- Series: {_title_res.get("matched_show") if isinstance(_title_res, dict) else ""}\n"
             f"- Season: {_ep_res.get("season")} "
             f" Episode: {_ep_res.get("episode")}\n"
             f"- Title: {_ep_res.get("episode_title")}\n"
