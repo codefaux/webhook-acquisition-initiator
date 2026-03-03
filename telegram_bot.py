@@ -76,7 +76,7 @@ def mi_data_to_detailed_message(
             "Closest Episode Result:\n"
             f"- Input: {_ep_res.get("input")}\n"
             f"- Season: {_ep_res.get("season")}\n"
-            f"- Episode: {_ep_res.get("episode]")}\n"
+            f"- Episode: {_ep_res.get("episode")}\n"
             f"- Title: {_ep_res.get("episode_title")}\n"
             f"- Score: {_ep_res.get("score")}\n"
             f"- Reason:\n<code>\n{_ep_res.get("reason")}\n</code>\n\n"
@@ -99,10 +99,8 @@ def mi_data_to_short_message(mi_data: mi_tuple_type, header: str | None = None) 
             "Closest Episode Result:\n"
             f"- Input: {_ep_res.get("input")}\n"
             f"- Season: {_ep_res.get("season")} "
-            f"- Episode: {_ep_res.get("episode]")}\n"
+            f" Episode: {_ep_res.get("episode")}\n"
             f"- Title: {_ep_res.get("episode_title")}\n"
-            f"- Score: {_ep_res.get("score")}\n"
-            f"- Reason:\n<code>\n{_ep_res.get("reason")}\n</code>\n\n"
         )
 
     return _val
