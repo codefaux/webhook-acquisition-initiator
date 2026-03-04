@@ -404,9 +404,11 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
 
 @register_command("help", help_text="Command list with short descriptions.")
 async def _help(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-
-    for _key, _val in cmd_dict:
-        pass
+    if update.effective_message:
+        _msg = "Available commands:\n"
+        for _key, _val in cmd_dict.items():
+            _msg += f"/{_key} - {_val["help"]}\n"
+        await update.effective_message.reply_text(_msg)
 
 
 async def _unknown(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
