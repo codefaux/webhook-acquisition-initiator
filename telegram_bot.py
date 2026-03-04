@@ -3,6 +3,7 @@ import json
 import os
 import re
 import threading
+from functools import wraps
 from typing import Final
 
 import fauxlogger as _log
@@ -32,27 +33,30 @@ RUN_TELEGRAM_BOT = int(os.getenv("RUN_TELEGRAM_BOT", 1)) == 1
 TELEGRAM_BOT_TOKEN: Final = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID: Final = os.getenv("TELEGRAM_CHAT_ID")
 
-app: Application | None = None
-loop: asyncio.AbstractEventLoop | None = None
-
 if RUN_TELEGRAM_BOT and not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("Missing TELEGRAM_BOT_TOKEN environment variable")
 
 
-def load_known_chats():
-    global known_chats
-    known_chats.clear()
+app: Application | None = None
+loop: asyncio.AbstractEventLoop | None = None
 
-    if os.path.exists(KNOWN_CHATS_FILE):
-        with open(KNOWN_CHATS_FILE, "r") as f:
-            try:
-                data = json.load(f)
-                if isinstance(data, list):
-                    known_chats.update(data)
-            except json.JSONDecodeError:
-                _log.msg(
-                    "Failed to decode queue JSON; starting with empty known chats."
-                )
+cmd_dict: dict = {}
+
+
+def register_command(name: str, help_text: str):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            kwargs["cmd"] = f"/{name}"
+            return func(*args, **kwargs)
+
+        cmd_dict[name] = {
+            "func": func,
+            "help": help_text,
+        }
+        return func
+
+    return decorator
 
 
 def mi_data_to_detailed_message(
@@ -111,34 +115,48 @@ def mi_data_to_short_message(mi_data: mi_tuple_type, header: str | None = None) 
     return _val
 
 
-def save_notify_chats():
+def load_known_chats():
+    global known_chats
+    known_chats.clear()
+
+    if os.path.exists(KNOWN_CHATS_FILE):
+        with open(KNOWN_CHATS_FILE, "r") as f:
+            try:
+                data = json.load(f)
+                if isinstance(data, list):
+                    known_chats.update(data)
+            except json.JSONDecodeError:
+                _log.msg(
+                    "Failed to decode queue JSON; starting with empty known chats."
+                )
+
+
+def load_notify_chats():
     global notify_chats
-    with open(NOTIFY_CHATS_FILE, "w") as f:
-        json.dump(list(notify_chats), f, indent=2)
+    notify_chats.clear()
 
-
-async def add_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    if chat:
-        if chat.id not in notify_chats:
-            notify_chats.add(chat.id)
-            save_notify_chats()
-        if DEBUG_PRINT:
-            _log.msg(f"Notify chats: {notify_chats}")
-
-
-async def remove_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    if chat:
-        notify_chats.remove(chat.id)
-        if DEBUG_PRINT:
-            _log.msg(f"Notify chats: {notify_chats}")
+    if os.path.exists(NOTIFY_CHATS_FILE):
+        with open(NOTIFY_CHATS_FILE, "r") as f:
+            try:
+                data = json.load(f)
+                if isinstance(data, list):
+                    notify_chats.update(data)
+            except json.JSONDecodeError:
+                _log.msg(
+                    "Failed to decode queue JSON; starting with empty notify chats."
+                )
 
 
 def save_known_chats():
     global known_chats
     with open(KNOWN_CHATS_FILE, "w") as f:
         json.dump(list(known_chats), f, indent=2)
+
+
+def save_notify_chats():
+    global notify_chats
+    with open(NOTIFY_CHATS_FILE, "w") as f:
+        json.dump(list(notify_chats), f, indent=2)
 
 
 async def add_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -151,8 +169,17 @@ async def add_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _log.msg(f"Known chats: {known_chats}")
 
 
+async def add_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if chat:
+        if chat.id not in notify_chats:
+            notify_chats.add(chat.id)
+            save_notify_chats()
+        if DEBUG_PRINT:
+            _log.msg(f"Notify chats: {notify_chats}")
+
+
 async def remove_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await remove_notify_chat(update, context)
     chat = update.effective_chat
     if chat:
         known_chats.remove(chat.id)
@@ -160,79 +187,22 @@ async def remove_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _log.msg(f"Known chats: {known_chats}")
 
 
-async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message:
-        # _keyboard = [
-        #     [
-        #         InlineKeyboardButton(
-        #             text="List Items",
-        #             switch_inline_query_current_chat="/list",
-        #         )
-        #     ]
-        # ]
-
-        await update.message.reply_text(
-            "Hello! I'm alive.\n"
-            "Available commands:\n"
-            "/echo <text> - Echo back text\n"
-            "/list - List items for intervention\n"
-            "/help - Show help",
-            # reply_markup=InlineKeyboardMarkup(_keyboard),
-        )
-    if update.channel_post:
-        await update.channel_post.reply_text(
-            "Hello! I'm alive.\n"
-            "Available commands:\n"
-            "/echo <text> - Echo back text\n"
-            "/list - List items for intervention\n"
-            "/help - Show help"
-        )
+async def remove_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if chat:
+        notify_chats.remove(chat.id)
+        if DEBUG_PRINT:
+            _log.msg(f"Notify chats: {notify_chats}")
 
 
-async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    _cmd = "/echo"
-    _args = None
-    if context.args:
-        _args = " ".join(context.args)
-    elif (
-        update.effective_message
-        and update.effective_message.text
-        and update.effective_message.text.startswith(_cmd)
-    ):
-        _args = update.effective_message.text.removeprefix(_cmd).strip()
-
-    if update.effective_message:
-        if _args:
-            await update.effective_message.reply_text(_args)
-        else:
-            await update.effective_message.reply_text(f"Usage: {_cmd} <text>")
+async def send_to_notify(message: str):
+    for _target in notify_chats:
+        await send_message(message, _target)
 
 
-async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    _cmd = "/list"
-    _args = None
-    if context.args:
-        _args = " ".join(context.args)
-    elif (
-        update.effective_message
-        and update.effective_message.text
-        and update.effective_message.text.startswith(_cmd)
-    ):
-        _args = update.effective_message.text.removeprefix(_cmd).strip()
-
-    if update.effective_message:
-        if not _args:
-            _queue: mi_dict_type = get_mi_queue()
-            _idx = 0
-            for _key, _item in _queue.items():
-                _idx += 1
-                _data: mi_tuple_type = (_key, _item)
-                await update.effective_message.reply_text(
-                    mi_data_to_short_message(_data, f"Item {_idx}:"),
-                    parse_mode="HTML",
-                )
-        else:
-            await update.effective_message.reply_text(f"Usage: {_cmd}")
+async def send_to_known(message: str):
+    for _target in known_chats:
+        await send_message(message, _target)
 
 
 def extract_uuid(message_text: str | None) -> str | None:
@@ -248,81 +218,6 @@ def extract_uuid(message_text: str | None) -> str | None:
             return match_arg.group(1)
 
     return None
-
-
-async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message:
-        message = update.message
-    elif update.channel_post:
-        message = update.channel_post
-    else:
-        return
-
-    _cmd = "/detail"
-    _args = None
-    _reply_uuid = None
-
-    if context.args:
-        _args = " ".join(context.args)
-    elif (
-        update.effective_message
-        and update.effective_message.text
-        and update.effective_message.text.startswith(_cmd)
-    ):
-        _args = update.effective_message.text.removeprefix(_cmd).strip()
-
-    if message.reply_to_message:
-        if (
-            message.reply_to_message.author_signature
-            and message.reply_to_message.author_signature == context.bot.first_name
-        ):
-            _reply_uuid = extract_uuid(message.reply_to_message.text)
-    elif _args:
-        if _args == "all":
-            _reply_uuid = "all"
-        else:
-            _reply_uuid = extract_uuid(_args)
-
-    if _reply_uuid:
-        _queue: mi_dict_type = get_mi_queue()
-        _idx = 0
-        for _key, _item in _queue.items():
-            _idx += 1
-            _data: mi_tuple_type = (_key, _item)
-            if _key.lower() == _reply_uuid.lower():
-                await message.reply_text(
-                    mi_data_to_detailed_message(_data, f"Item {_idx}:"),
-                    parse_mode="HTML",
-                )
-    else:
-        await message.reply_text(
-            f"Usage: <code>{_cmd}</code> as reply to target, or <code>{_cmd} UUID</code>",
-            parse_mode="HTML",
-        )
-
-
-async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    _cmd = "/echoall"
-    _args = None
-    if context.args:
-        _args = " ".join(context.args)
-    elif (
-        update.effective_message
-        and update.effective_message.text
-        and update.effective_message.text.startswith(_cmd)
-    ):
-        _args = update.effective_message.text.removeprefix(_cmd).strip()
-
-    if _args:
-        await send_to_notify(_args)
-    else:
-        if update.effective_message:
-            await update.effective_message.reply_text(f"Usage: {_cmd} <text>")
-
-
-async def _unknown(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message:
-        await update.message.reply_text("Unknown command")
 
 
 async def _check_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -353,22 +248,190 @@ async def send_message(text: str, chat_id: str | None):
         await app.bot.send_message(chat_id=target_chat_id, text=text)
 
 
-async def send_to_notify(message: str):
-    for _target in notify_chats:
-        await send_message(message, _target)
-
-
-async def send_to_known(message: str):
-    for _target in known_chats:
-        await send_message(message, _target)
-
-
 def mi_notify_callback(mi_data: mi_tuple_type) -> None:
-    _message = mi_data_to_short_message(mi_data, "New item: ")
-
     if loop and app:
-        asyncio.run_coroutine_threadsafe(send_to_notify(_message), loop)
+        asyncio.run_coroutine_threadsafe(
+            send_to_notify(mi_data_to_short_message(mi_data, "New item: ")), loop
+        )
     return
+
+
+# ========
+# COMMANDS
+# ========
+
+
+@register_command("start", help_text="Start using the bot.")
+async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    if update.message:
+        # _keyboard = [
+        #     [
+        #         InlineKeyboardButton(
+        #             text="List Items",
+        #             switch_inline_query_current_chat="/list",
+        #         )
+        #     ]
+        # ]
+
+        await update.message.reply_text(
+            "Hello! I'm alive.\n" "/help - Show help",
+            # reply_markup=InlineKeyboardMarkup(_keyboard),
+        )
+    if update.channel_post:
+        await update.channel_post.reply_text(
+            "Hello! I'm alive.\n" "Available commands:\n" "/help - Show help"
+        )
+
+
+@register_command("stop", help_text="Stop using the bot and disable all notifications.")
+async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    await remove_known_chat(update, context)
+    await remove_notify_chat(update, context)
+
+
+@register_command("echo", help_text="Echo.")
+async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    _args = None
+    if context.args:
+        _args = " ".join(context.args)
+    elif (
+        update.effective_message
+        and update.effective_message.text
+        and update.effective_message.text.startswith(_cmd)
+    ):
+        _args = update.effective_message.text.removeprefix(_cmd).strip()
+
+    if update.effective_message:
+        if _args:
+            await update.effective_message.reply_text(_args)
+        else:
+            await update.effective_message.reply_text(f"Usage: {_cmd} <text>")
+
+
+@register_command("echoall", help_text="Echo to notification channels.")
+async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    _args = None
+    if context.args:
+        _args = " ".join(context.args)
+    elif (
+        update.effective_message
+        and update.effective_message.text
+        and update.effective_message.text.startswith(_cmd)
+    ):
+        _args = update.effective_message.text.removeprefix(_cmd).strip()
+
+    if _args:
+        await send_to_notify(_args)
+    else:
+        if update.effective_message:
+            await update.effective_message.reply_text(f"Usage: {_cmd} <text>")
+
+
+@register_command("notify", help_text="Enable notifications for new items.")
+async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    await add_notify_chat(update, context)
+
+
+@register_command("nonotify", help_text="Stop receiving notifications.")
+async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    await remove_notify_chat(update, context)
+
+
+@register_command("list", help_text="List current items.")
+async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    _args = None
+    if context.args:
+        _args = " ".join(context.args)
+    elif (
+        update.effective_message
+        and update.effective_message.text
+        and update.effective_message.text.startswith(_cmd)
+    ):
+        _args = update.effective_message.text.removeprefix(_cmd).strip()
+
+    if update.effective_message:
+        if not _args:
+            _queue: mi_dict_type = get_mi_queue()
+            _idx = 0
+            for _key, _item in _queue.items():
+                _idx += 1
+                _data: mi_tuple_type = (_key, _item)
+                await update.effective_message.reply_text(
+                    mi_data_to_short_message(_data, f"Item {_idx}:"),
+                    parse_mode="HTML",
+                )
+        else:
+            await update.effective_message.reply_text(f"Usage: {_cmd}")
+
+
+@register_command("detail", help_text="Get details for current items.")
+async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    if update.message:
+        message = update.message
+    elif update.channel_post:
+        message = update.channel_post
+    else:
+        return
+
+    _cmd = "/detail"
+    _args = None
+    _reply_uuid = None
+
+    if context.args:
+        _args = " ".join(context.args)
+    elif (
+        update.effective_message
+        and update.effective_message.text
+        and update.effective_message.text.startswith(_cmd)
+    ):
+        _args = update.effective_message.text.removeprefix(_cmd).strip()
+
+    if message.reply_to_message:
+        if (
+            message.reply_to_message.author_signature
+            and message.reply_to_message.author_signature == context.bot.first_name
+        ):  # Need to also handle reply in direct message
+            _reply_uuid = extract_uuid(message.reply_to_message.text)
+    elif _args:
+        if _args == "all":
+            _reply_uuid = "all"
+        else:
+            _reply_uuid = extract_uuid(_args)
+
+    if _reply_uuid:
+        _queue: mi_dict_type = get_mi_queue()
+        _idx = 0
+        for _key, _item in _queue.items():
+            _idx += 1
+            _data: mi_tuple_type = (_key, _item)
+            if _key.lower() == _reply_uuid.lower():
+                await message.reply_text(
+                    mi_data_to_detailed_message(_data, f"Item {_idx}:"),
+                    parse_mode="HTML",
+                )
+    else:
+        await message.reply_text(
+            f"Usage: <code>{_cmd}</code> as reply to target, or <code>{_cmd} UUID</code>",
+            parse_mode="HTML",
+        )
+
+
+@register_command("help", help_text="Command list with short descriptions.")
+async def _help(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+
+    for _key, _val in cmd_dict:
+        pass
+
+
+async def _unknown(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message:
+        await update.message.reply_text("Unknown command")
+        await _help(update, context, "")
+
+
+# ====
+# CORE
+# ====
 
 
 async def bot_start(stop_event: threading.Event):
@@ -385,20 +448,11 @@ async def bot_start(stop_event: threading.Event):
 
     app.add_handler(MessageHandler(filters.ALL, add_known_chat), group=0)
 
-    cmd_dict: dict = {
-        "start": _start,
-        "stop": remove_known_chat,
-        "notify": add_notify_chat,
-        "nonotify": remove_notify_chat,
-        "echo": _echo,
-        "echoall": _echo,
-        "list": _list,
-        "detail": _detail,
-    }
-
-    for _cmd, _func in cmd_dict.items():
-        app.add_handler(CommandHandler(_cmd, _func), group=1)
-        app.add_handler(MessageHandler(filters.Regex(f"^/{_cmd}"), _func), group=1)
+    for _cmd, _val in cmd_dict.items():
+        app.add_handler(CommandHandler(_cmd, _val["func"]), group=1)
+        app.add_handler(
+            MessageHandler(filters.Regex(f"^/{_cmd}"), _val["func"]), group=1
+        )
 
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, _check_reply), group=2
