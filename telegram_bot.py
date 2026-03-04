@@ -24,6 +24,9 @@ DATA_DIR: str = os.getenv("DATA_DIR") or "./data"
 KNOWN_CHATS_FILE: Final[str] = os.path.join(DATA_DIR, "known_chats.json")
 known_chats = set()
 
+NOTIFY_CHATS_FILE: Final[str] = os.path.join(DATA_DIR, "notify_chats.json")
+notify_chats = set()
+
 RUN_TELEGRAM_BOT = int(os.getenv("RUN_TELEGRAM_BOT", 1)) == 1
 
 TELEGRAM_BOT_TOKEN: Final = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -108,13 +111,37 @@ def mi_data_to_short_message(mi_data: mi_tuple_type, header: str | None = None) 
     return _val
 
 
+def save_notify_chats():
+    global notify_chats
+    with open(NOTIFY_CHATS_FILE, "w") as f:
+        json.dump(list(notify_chats), f, indent=2)
+
+
+async def add_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if chat:
+        if chat.id not in notify_chats:
+            notify_chats.add(chat.id)
+            save_notify_chats()
+        if DEBUG_PRINT:
+            _log.msg(f"Notify chats: {notify_chats}")
+
+
+async def remove_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if chat:
+        notify_chats.remove(chat.id)
+        if DEBUG_PRINT:
+            _log.msg(f"Notify chats: {notify_chats}")
+
+
 def save_known_chats():
     global known_chats
     with open(KNOWN_CHATS_FILE, "w") as f:
         json.dump(list(known_chats), f, indent=2)
 
 
-async def track_known_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def add_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     if chat:
         if chat.id not in known_chats:
@@ -125,6 +152,7 @@ async def track_known_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def remove_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await remove_notify_chat(update, context)
     chat = update.effective_chat
     if chat:
         known_chats.remove(chat.id)
@@ -286,7 +314,7 @@ async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
         _args = update.effective_message.text.removeprefix(_cmd).strip()
 
     if _args:
-        await send_to_known(_args)
+        await send_to_notify(_args)
     else:
         if update.effective_message:
             await update.effective_message.reply_text(f"Usage: {_cmd} <text>")
@@ -325,20 +353,21 @@ async def send_message(text: str, chat_id: str | None):
         await app.bot.send_message(chat_id=target_chat_id, text=text)
 
 
+async def send_to_notify(message: str):
+    for _target in notify_chats:
+        await send_message(message, _target)
+
+
 async def send_to_known(message: str):
     for _target in known_chats:
         await send_message(message, _target)
 
 
 def mi_notify_callback(mi_data: mi_tuple_type) -> None:
-    _uuid = mi_data[0]
-    _message = mi_data_to_detailed_message(mi_data, "New item: ")
+    _message = mi_data_to_short_message(mi_data, "New item: ")
 
     if loop and app:
-        asyncio.run_coroutine_threadsafe(
-            send_to_known(f"uuid: {_uuid}\ndata: {_message}"),
-            loop,
-        )
+        asyncio.run_coroutine_threadsafe(send_to_notify(_message), loop)
     return
 
 
@@ -354,11 +383,13 @@ async def bot_start(stop_event: threading.Event):
     load_known_chats()
     add_mi_notify(mi_notify_callback)
 
-    app.add_handler(MessageHandler(filters.ALL, track_known_chats), group=0)
+    app.add_handler(MessageHandler(filters.ALL, add_known_chat), group=0)
 
     cmd_dict: dict = {
         "start": _start,
         "stop": remove_known_chat,
+        "notify": add_notify_chat,
+        "nonotify": remove_notify_chat,
         "echo": _echo,
         "echoall": _echo,
         "list": _list,
