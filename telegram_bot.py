@@ -46,15 +46,14 @@ cmd_dict: dict = {}
 def register_command(name: str, help_text: str):
     def decorator(func):
         @wraps(func)
-        def wrapper(*args, **kwargs):
-            kwargs["cmd"] = f"/{name}"
-            return func(*args, **kwargs)
+        async def wrapper(*args, **kwargs):
+            return await func(*args, **kwargs, _cmd=f"/{name}")
 
         cmd_dict[name] = {
-            "func": func,
+            "func": wrapper,
             "help": help_text,
         }
-        return func
+        return wrapper
 
     return decorator
 
