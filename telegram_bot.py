@@ -219,15 +219,6 @@ def get_cmd_args(
     return None
 
 
-def get_message(update: Update) -> Message | None:
-    if update.message:
-        return update.message
-    elif update.channel_post:
-        return update.channel_post
-    else:
-        return None
-
-
 def extract_uuid(message_text: str | None) -> str | None:
     line_pattern = r"^UUID:\s*([0-9a-f-]{36})$"
     arg_pattern = r"([0-9a-f-]{36})"
@@ -278,7 +269,7 @@ async def send_message(text: str, chat_id: str | None):
 
 @register_command("start", help_text="Start using the bot.")
 async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    if update.message:
+    if update.effective_message:
         # _keyboard = [
         #     [
         #         InlineKeyboardButton(
@@ -288,13 +279,9 @@ async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
         #     ]
         # ]
 
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Hello! I'm alive.\n" "/help - Show help",
             # reply_markup=InlineKeyboardMarkup(_keyboard),
-        )
-    if update.channel_post:
-        await update.channel_post.reply_text(
-            "Hello! I'm alive.\n" "Available commands:\n" "/help - Show help"
         )
 
 
@@ -357,19 +344,19 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("detail", help_text="Get details for current items.")
 async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    message = get_message(update)
-    if not message:
+    if not update.effective_message:
         return
 
     _reply_uuid = None
     _args = get_cmd_args(update, context, _cmd)
 
-    if message.reply_to_message:
+    if update.effective_message.reply_to_message:
         if (
-            message.reply_to_message.author_signature
-            and message.reply_to_message.author_signature == context.bot.first_name
+            update.effective_message.reply_to_message.author_signature
+            and update.effective_message.reply_to_message.author_signature
+            == context.bot.first_name
         ):  # Need to also handle reply in direct message
-            _reply_uuid = extract_uuid(message.reply_to_message.text)
+            _reply_uuid = extract_uuid(update.effective_message.reply_to_message.text)
     elif _args:
         if _args == "all":
             _reply_uuid = "all"
@@ -383,12 +370,12 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
             _idx += 1
             _data: mi_tuple_type = (_key, _item)
             if _key.lower() == _reply_uuid.lower():
-                await message.reply_text(
+                await update.effective_message.reply_text(
                     mi_data_to_detailed_message(_data, f"Item {_idx}:"),
                     parse_mode="HTML",
                 )
     else:
-        await message.reply_text(
+        await update.effective_message.reply_text(
             f"Usage: <code>{_cmd}</code> as reply to target, or <code>{_cmd} UUID</code>",
             parse_mode="HTML",
         )
@@ -404,8 +391,8 @@ async def _help(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 
 async def _unknown(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message:
-        await update.message.reply_text("Unknown command")
+    if update.effective_message:
+        await update.effective_message.reply_text("Unknown command")
         await _help(update, context, "")
 
 
