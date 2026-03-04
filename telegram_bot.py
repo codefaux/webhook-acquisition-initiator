@@ -13,7 +13,7 @@ from manual_intervention_manager import (get_mi_queue, mi_dict_type,
 from manual_intervention_manager import \
     remove_notify_listener as remove_mi_notify
 # from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram import Update
+from telegram import Message, Update
 from telegram.ext import (Application, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
@@ -205,6 +205,30 @@ async def send_to_known(message: str):
         await send_message(message, _target)
 
 
+def get_cmd_args(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
+) -> str | None:
+    if context.args:
+        return " ".join(context.args)
+    elif (
+        update.effective_message
+        and update.effective_message.text
+        and update.effective_message.text.startswith(_cmd)
+    ):
+        return update.effective_message.text.removeprefix(_cmd).strip()
+
+    return None
+
+
+def get_message(update: Update) -> Message | None:
+    if update.message:
+        return update.message
+    elif update.channel_post:
+        return update.channel_post
+    else:
+        return None
+
+
 def extract_uuid(message_text: str | None) -> str | None:
     line_pattern = r"^UUID:\s*([0-9a-f-]{36})$"
     arg_pattern = r"([0-9a-f-]{36})"
@@ -291,15 +315,7 @@ async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("echo", help_text="Echo.")
 async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = None
-    if context.args:
-        _args = " ".join(context.args)
-    elif (
-        update.effective_message
-        and update.effective_message.text
-        and update.effective_message.text.startswith(_cmd)
-    ):
-        _args = update.effective_message.text.removeprefix(_cmd).strip()
+    _args = get_cmd_args(update, context, _cmd)
 
     if update.effective_message:
         if _args:
@@ -310,15 +326,7 @@ async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("echoall", help_text="Echo to notification channels.")
 async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = None
-    if context.args:
-        _args = " ".join(context.args)
-    elif (
-        update.effective_message
-        and update.effective_message.text
-        and update.effective_message.text.startswith(_cmd)
-    ):
-        _args = update.effective_message.text.removeprefix(_cmd).strip()
+    _args = get_cmd_args(update, context, _cmd)
 
     if _args:
         await send_to_notify(_args)
@@ -339,15 +347,7 @@ async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: st
 
 @register_command("list", help_text="List current items.")
 async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = None
-    if context.args:
-        _args = " ".join(context.args)
-    elif (
-        update.effective_message
-        and update.effective_message.text
-        and update.effective_message.text.startswith(_cmd)
-    ):
-        _args = update.effective_message.text.removeprefix(_cmd).strip()
+    _args = get_cmd_args(update, context, _cmd)
 
     if update.effective_message:
         if not _args:
@@ -366,25 +366,12 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("detail", help_text="Get details for current items.")
 async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    if update.message:
-        message = update.message
-    elif update.channel_post:
-        message = update.channel_post
-    else:
+    message = get_message(update)
+    if not message:
         return
 
-    _cmd = "/detail"
-    _args = None
     _reply_uuid = None
-
-    if context.args:
-        _args = " ".join(context.args)
-    elif (
-        update.effective_message
-        and update.effective_message.text
-        and update.effective_message.text.startswith(_cmd)
-    ):
-        _args = update.effective_message.text.removeprefix(_cmd).strip()
+    _args = get_cmd_args(update, context, _cmd)
 
     if message.reply_to_message:
         if (
