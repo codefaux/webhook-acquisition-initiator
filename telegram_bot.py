@@ -271,14 +271,6 @@ async def send_message(text: str, chat_id: str | None):
         await app.bot.send_message(chat_id=target_chat_id, text=text)
 
 
-def mi_notify_callback(mi_data: mi_tuple_type) -> None:
-    if loop and app:
-        asyncio.run_coroutine_threadsafe(
-            send_to_notify(mi_data_to_short_message(mi_data, "New item: ")), loop
-        )
-    return
-
-
 # ========
 # COMMANDS
 # ========
@@ -415,6 +407,19 @@ async def _unknown(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message:
         await update.message.reply_text("Unknown command")
         await _help(update, context, "")
+
+
+# #####################
+# NOTIFICATION CALLBACK
+# #####################
+
+
+def mi_notify_callback(mi_data: mi_tuple_type) -> None:
+    if loop and app:
+        asyncio.run_coroutine_threadsafe(
+            send_to_notify(mi_data_to_short_message(mi_data, "New item: ")), loop
+        )
+    return
 
 
 # ====
