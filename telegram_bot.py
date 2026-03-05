@@ -44,22 +44,29 @@ cmd_dict: dict[str, dict] = {}
 
 
 def register_command(
-    name: str | list[str], help_text: str, usage_text: str | None = None
+    name: str | list[str], help_text: str, usage_text: str | None = "`{self}`"
 ):
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            return await func(*args, **kwargs, _cmd=f"/{name}")
+            if isinstance(name, str):
+                return await func(*args, **kwargs, _cmd=f"/{name}")
+            elif isinstance(name, list):
+                return await func(*args, **kwargs, _cmd=f"/{name[0]}")
 
         if isinstance(name, str):
-            cmd_dict[name] = {"func": wrapper, "help": help_text, "usage": usage_text}
+            cmd_dict[name] = {
+                "func": wrapper,
+                "help": help_text,
+                "usage": usage_text.format(self=f"/{name}") if usage_text else None,
+            }
         elif isinstance(name, list):
             for _name in name:
                 cmd_dict[_name] = {
                     "func": wrapper,
                     "help": help_text,
                     "usage": (
-                        usage_text.format(_cmd=f"/{_name}") if usage_text else None
+                        usage_text.format(self=f"/{_name}") if usage_text else None
                     ),
                 }
 
