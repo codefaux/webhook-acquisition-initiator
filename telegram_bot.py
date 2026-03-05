@@ -352,12 +352,7 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
     _args = get_cmd_args(update, context, _cmd)
 
     if update.effective_message.reply_to_message:
-        if (
-            update.effective_message.reply_to_message.author_signature
-            and update.effective_message.reply_to_message.author_signature
-            == context.bot.first_name
-        ):  # Need to also handle reply in direct message
-            _reply_uuid = extract_uuid(update.effective_message.reply_to_message.text)
+        _reply_uuid = extract_uuid(update.effective_message.reply_to_message.text)
     elif _args:
         if _args == "all":
             _reply_uuid = "all"
