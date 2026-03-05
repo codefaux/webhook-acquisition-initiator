@@ -40,7 +40,7 @@ if RUN_TELEGRAM_BOT and not TELEGRAM_BOT_TOKEN:
 app: Application | None = None
 loop: asyncio.AbstractEventLoop | None = None
 
-cmd_dict: dict = {}
+cmd_dict: dict[str, dict] = {}
 
 
 def register_command(name: str | list[str], help_text: str):
