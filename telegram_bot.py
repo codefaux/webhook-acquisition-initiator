@@ -253,18 +253,27 @@ def get_single_arg_from(
 
 
 def get_args_list_from(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    _cmd: str,
+    raiseOnArg: bool | None = None,
 ) -> list[str] | None:
+    _args = None
     if context.args:
-        return context.args
+        _args = context.args
     elif (
         update.effective_message
         and update.effective_message.text
         and update.effective_message.text.startswith(_cmd)
     ):
-        return update.effective_message.text.removeprefix(_cmd).strip().split()
+        _args = update.effective_message.text.removeprefix(_cmd).strip().split()
 
-    return None
+    if _args and raiseOnArg is True:
+        raise UsageError()
+    if not _args and raiseOnArg is False:
+        raise UsageError()
+
+    return _args
 
 
 def extract_uuid(message_text: str | None) -> str | None:
