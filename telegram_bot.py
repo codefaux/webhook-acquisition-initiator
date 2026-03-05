@@ -356,6 +356,10 @@ async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("stop", help_text="Stop using the bot and disable all notifications.")
 async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    if get_single_arg_from(update, context, _cmd):
+        await send_usage(update, _cmd)
+        return
+
     await remove_known_chat(update, context)
     await remove_notify_chat(update, context)
 
