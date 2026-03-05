@@ -8,10 +8,11 @@ from typing import Final
 
 import fauxlogger as _log
 from manual_intervention_manager import add_notify_listener as add_mi_notify
-from manual_intervention_manager import (get_mi_queue, mi_dict_type,
-                                         mi_tuple_type)
+from manual_intervention_manager import (get_mi_queue, get_mi_queue_item,
+                                         mi_dict_type, mi_tuple_type)
 from manual_intervention_manager import \
     remove_notify_listener as remove_mi_notify
+from manual_intervention_manager import set_mi_queue_item
 # from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import Update
 from telegram.ext import (Application, CommandHandler, ContextTypes,
