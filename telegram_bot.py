@@ -230,6 +230,13 @@ async def send_to_known(message: str):
         await send_message(message, _target)
 
 
+def get_called_as(update: Update) -> str | None:
+    if update.effective_message and update.effective_message.text:
+        return update.effective_message.text.removeprefix("/").split()[0].lower()
+
+    return None
+
+
 def get_single_arg_from(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
