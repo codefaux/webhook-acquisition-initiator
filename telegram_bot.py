@@ -39,6 +39,7 @@ TELEGRAM_CHAT_ID: Final = os.getenv("TELEGRAM_CHAT_ID")
 if RUN_TELEGRAM_BOT and not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("Missing TELEGRAM_BOT_TOKEN environment variable")
 
+USAGE_TARGET_BASIC: Final[str] = "`{self}` as reply to target, or `{self} UUID`"
 
 app: Application | None = None
 loop: asyncio.AbstractEventLoop | None = None
@@ -458,7 +459,7 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 @register_command(
     "detail",
     help_text="Get details for target item.",
-    usage_text="`{self}` as reply to target, or `{self} UUID`",
+    usage_text=USAGE_TARGET_BASIC,
 )
 async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     try:
@@ -604,7 +605,7 @@ async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 @register_command(
     ["enqueue", "requeue"],
     help_text="Place item in Decision queue, remove it from Manual Intervention state.",
-    usage_text="`{self}` as reply to target, or `{self} UUID`",
+    usage_text=USAGE_TARGET_BASIC,
 )
 async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     try:
