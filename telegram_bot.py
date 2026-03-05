@@ -363,7 +363,7 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
             await update.effective_message.reply_text(f"Usage: {_cmd}")
 
 
-@register_command("detail", help_text="Get details for current items.")
+@register_command("detail", help_text="Get details for target item.")
 async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     if update.effective_message:
         _args = get_args_from(update, context, _cmd)
