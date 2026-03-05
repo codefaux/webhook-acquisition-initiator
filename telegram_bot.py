@@ -336,6 +336,10 @@ async def send_usage(update: Update, _cmd: str):
 
 @register_command("start", help_text="Start using the bot.")
 async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    if get_single_arg_from(update, context, _cmd):
+        await send_usage(update, _cmd)
+        return
+
     if update.effective_message:
         # _keyboard = [
         #     [
