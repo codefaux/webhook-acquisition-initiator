@@ -214,7 +214,7 @@ async def send_to_known(message: str):
         await send_message(message, _target)
 
 
-def get_args_from(
+def get_single_arg_from(
     update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
 ) -> str | None:
     if context.args:
@@ -306,7 +306,7 @@ async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("echo", help_text="Echo.")
 async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = get_args_from(update, context, _cmd)
+    _args = get_single_arg_from(update, context, _cmd)
 
     if update.effective_message:
         if _args:
@@ -317,7 +317,7 @@ async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("echoall", help_text="Echo to notification channels.")
 async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = get_args_from(update, context, _cmd)
+    _args = get_single_arg_from(update, context, _cmd)
 
     if _args:
         await send_to_notify(_args)
@@ -346,7 +346,7 @@ async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: st
 
 @register_command("list", help_text="List current items.")
 async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = get_args_from(update, context, _cmd)
+    _args = get_single_arg_from(update, context, _cmd)
 
     if update.effective_message:
         if not _args:
@@ -366,7 +366,7 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 @register_command("detail", help_text="Get details for target item.")
 async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     if update.effective_message:
-        _args = get_args_from(update, context, _cmd)
+        _args = get_single_arg_from(update, context, _cmd)
         _reply_uuid = get_uuid_from(update, _args)
 
         if _reply_uuid:
