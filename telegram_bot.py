@@ -439,29 +439,34 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
             )
 
 
-@register_command("detail", help_text="Get details for target item.")
+@register_command(
+    "detail",
+    help_text="Get details for target item.",
+    usage_text="`{self}` as reply to target, or `{self} UUID`",
+)
 async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    if update.effective_message:
-        _arg = get_single_arg_from(update, context, _cmd)
+    try:
+        if update.effective_message:
+            _arg = get_single_arg_from(update, context, _cmd)
 
-        _reply_uuid = get_uuid_from(update, _arg) if _arg else None
+            _target_uuid = get_uuid_from(update, _arg)
 
-        if _reply_uuid:
-            _item = get_mi_queue().get(_reply_uuid.lower())
+            if not _target_uuid:
+                raise UsageError
+
+            _item = get_mi_queue_item(_target_uuid.lower())
 
             if _item:
                 await update.effective_message.reply_text(
-                    mi_data_to_detailed_message((_reply_uuid.lower(), _item)),
+                    mi_data_to_detailed_message((_target_uuid.lower(), _item)),
                     parse_mode="HTML",
                 )
             else:
                 await update.effective_message.reply_text("Error: Target not found.")
             return
 
-        await update.effective_message.reply_text(
-            f"Usage: <code>{_cmd}</code> as reply to target, or <code>{_cmd} UUID</code>",
-            parse_mode="HTML",
-        )
+    except UsageError:
+        await send_usage(update, _cmd)
 
 
 @register_command("help", help_text="Command list with short descriptions.")
