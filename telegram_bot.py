@@ -7,12 +7,14 @@ from functools import wraps
 from typing import Final
 
 import fauxlogger as _log
+from decision_queue_manager import enqueue as decision_enqueue
 from manual_intervention_manager import add_notify_listener as add_mi_notify
-from manual_intervention_manager import (get_mi_queue, get_mi_queue_item,
+from manual_intervention_manager import (drop_mi_queue_item, get_mi_queue,
+                                         get_mi_queue_item, load_mi_queue,
                                          mi_dict_type, mi_tuple_type)
 from manual_intervention_manager import \
     remove_notify_listener as remove_mi_notify
-from manual_intervention_manager import set_mi_queue_item
+from manual_intervention_manager import save_mi_queue, set_mi_queue_item
 # from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import Update
 from telegram.ext import (Application, CommandHandler, ContextTypes,
@@ -597,6 +599,45 @@ async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
             await send_usage(update, _called_as)
         else:
             await send_usage(update, _cmd)
+
+
+@register_command(
+    ["enqueue", "requeue"],
+    help_text="Place item in Decision queue, remove it from Manual Intervention state.",
+    usage_text="`{self}` as reply to target, or `{self} UUID`",
+)
+async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    try:
+        if update.effective_message:
+            _arg = get_single_arg_from(update, context, _cmd)
+
+            _target_uuid = get_uuid_from(update, _arg)
+
+            if not _target_uuid:
+                raise UsageError
+
+            _item = get_mi_queue_item(_target_uuid.lower())
+
+            if _item:
+                _mi_insert: dict = {"reason": "manual_intervention: telegram"}
+                if update.effective_message.from_user:
+                    _mi_insert["user"] = update.effective_message.from_user.full_name
+                _item["manual_intervention"] = _mi_insert
+
+                decision_enqueue(_item)
+                drop_mi_queue_item(_target_uuid)
+                save_mi_queue()
+
+                await update.effective_message.reply_text(
+                    f"Item {_target_uuid} ({_item["title"]}) moved to Decision queue.",
+                    parse_mode="HTML",
+                )
+            else:
+                await update.effective_message.reply_text("Error: Target not found.")
+            return
+
+    except UsageError:
+        await send_usage(update, _cmd)
 
 
 @register_command("help", help_text="Command list with short descriptions.")
