@@ -474,6 +474,82 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
         await send_usage(update, _cmd)
 
 
+@register_command(
+    ["set"],
+    help_text="Set details for target item.",
+    usage_text="`{self} PARAMETER value` as reply to target OR\n`{self} UUID PARAMETER value` to specify by UUID\nWhere PARAMETER = series|season|episode|title|score",
+)
+async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    try:
+        if update.effective_message:
+            _args = get_args_list_from(update, context, _cmd)
+            _arg_idx = 0
+
+            if not _args or len(_args) < 2:  # AT LEAST /set [uuid] param value
+                raise UsageError
+
+            # Check args for target, parameter, value
+            _target_uuid = get_uuid_from(update, _args[0] if _args else None)
+
+            if not _target_uuid:
+                raise UsageError
+
+            _item = get_mi_queue_item(_target_uuid.lower())
+
+            if not _item:
+                await update.effective_message.reply_text("Error: Target not found.")
+                return
+
+            if not update.effective_message.reply_to_message:
+                _arg_idx = 1
+
+            _parameter = _args[_arg_idx]
+            _subparameter = None
+
+            if _parameter not in _item.keys():
+                await update.effective_message.reply_text(
+                    "Error: Parameter not present in target."
+                )
+                return
+
+            _subcheck = _item[_parameter]
+            if isinstance(_subcheck, dict):
+                _arg_idx += 1
+                _subparameter = _args[_arg_idx]
+
+                if _subparameter not in _subcheck.keys():
+                    await update.effective_message.reply_text(
+                        "Error: Parameter[Subparameter] not present in target."
+                    )
+                    return
+
+            _arg_idx += 1
+            _value = " ".join(_args[_arg_idx:])
+
+            if not _value:
+                await update.effective_message.reply_text(
+                    'Error: Value must be provided. Use double-quote (") for None.'
+                )
+                return
+
+            if _subparameter is None:
+                _item[_parameter] = _value
+            else:
+                _item[_parameter][  # pyright: ignore[reportIndexIssue]
+                    _subparameter
+                ] = _value
+
+            set_mi_queue_item(_target_uuid.lower(), _item)
+
+            await update.effective_message.reply_text(
+                mi_data_to_detailed_message((_target_uuid.lower(), _item)),
+                parse_mode="HTML",
+            )
+
+    except UsageError:
+        await send_usage(update, _cmd)
+
+
 @register_command("help", help_text="Command list with short descriptions.")
 async def _help(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     if update.effective_message:
