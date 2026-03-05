@@ -423,21 +423,20 @@ async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: st
 
 @register_command("list", help_text="List current items.")
 async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _arg = get_single_arg_from(update, context, _cmd)
+    if get_single_arg_from(update, context, _cmd):
+        await send_usage(update, _cmd)
+        return
 
     if update.effective_message:
-        if not _arg:
-            _queue: mi_dict_type = get_mi_queue()
-            _idx = 0
-            for _key, _item in _queue.items():
-                _idx += 1
-                _data: mi_tuple_type = (_key, _item)
-                await update.effective_message.reply_text(
-                    mi_data_to_short_message(_data, f"Item {_idx}:"),
-                    parse_mode="HTML",
-                )
-        else:
-            await update.effective_message.reply_text(f"Usage: {_cmd}")
+        _queue: mi_dict_type = get_mi_queue()
+        _idx = 0
+        for _key, _item in _queue.items():
+            _idx += 1
+            _data: mi_tuple_type = (_key, _item)
+            await update.effective_message.reply_text(
+                mi_data_to_short_message(_data, f"Item {_idx}:"),
+                parse_mode="HTML",
+            )
 
 
 @register_command("detail", help_text="Get details for target item.")
