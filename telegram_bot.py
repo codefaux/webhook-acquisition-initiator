@@ -369,26 +369,30 @@ async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
         )
 
 
-@register_command("echo", help_text="Echo.")
-async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _arg = get_single_arg_from(update, context, _cmd)
-
-    if update.effective_message:
-        if _arg:
-            await update.effective_message.reply_text(_arg)
-        else:
-            await update.effective_message.reply_text(f"Usage: {_cmd} <text>")
-
-
-@register_command("echoall", help_text="Echo to notification channels.")
+@register_command(
+    "echoall",
+    help_text="Echo to notification channels.",
+    usage_text="`{self} text`",
+)
 async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _arg = get_single_arg_from(update, context, _cmd)
+    try:
+        _arg = get_single_arg_from(update, context, _cmd, True)
 
-    if _arg:
-        await send_to_notify(_arg)
-    else:
-        if update.effective_message:
-            await update.effective_message.reply_text(f"Usage: {_cmd} <text>")
+        if _arg:
+            await send_to_notify(_arg)
+    except UsageError:
+        await send_usage(update, _cmd)
+
+
+@register_command("echo", help_text="Echo.", usage_text="`{self} <text>`")
+async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    try:
+        _arg = get_single_arg_from(update, context, _cmd, True)
+
+        if update.effective_message and _arg:
+            await update.effective_message.reply_text(_arg)
+    except UsageError:
+        await send_usage(update, _cmd)
 
 
 @register_command("notify", help_text="Enable notifications for new items.")
