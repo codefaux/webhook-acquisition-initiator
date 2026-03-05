@@ -320,11 +320,13 @@ async def send_usage(update: Update, _cmd: str):
         raise RuntimeError("Bot not running yet")
 
     if update.effective_message:
-        _usage = cmd_dict[_cmd].get("usage")
-        if _usage:
-            await update.effective_message.reply_text(
-                f"Usage:\n{_usage}", parse_mode="HTML"
-            )
+        _target = cmd_dict.get(_cmd.removeprefix("/"))
+        if _target:
+            _usage = _target.get("usage")
+            if _usage:
+                await update.effective_message.reply_text(
+                    f"Usage:\n{_usage}", parse_mode="Markdown"
+                )
 
 
 # ========
