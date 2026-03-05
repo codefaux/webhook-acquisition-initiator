@@ -321,21 +321,21 @@ async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("echo", help_text="Echo.")
 async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = get_single_arg_from(update, context, _cmd)
+    _arg = get_single_arg_from(update, context, _cmd)
 
     if update.effective_message:
-        if _args:
-            await update.effective_message.reply_text(_args)
+        if _arg:
+            await update.effective_message.reply_text(_arg)
         else:
             await update.effective_message.reply_text(f"Usage: {_cmd} <text>")
 
 
 @register_command("echoall", help_text="Echo to notification channels.")
 async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = get_single_arg_from(update, context, _cmd)
+    _arg = get_single_arg_from(update, context, _cmd)
 
-    if _args:
-        await send_to_notify(_args)
+    if _arg:
+        await send_to_notify(_arg)
     else:
         if update.effective_message:
             await update.effective_message.reply_text(f"Usage: {_cmd} <text>")
@@ -361,10 +361,10 @@ async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: st
 
 @register_command("list", help_text="List current items.")
 async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = get_single_arg_from(update, context, _cmd)
+    _arg = get_single_arg_from(update, context, _cmd)
 
     if update.effective_message:
-        if not _args:
+        if not _arg:
             _queue: mi_dict_type = get_mi_queue()
             _idx = 0
             for _key, _item in _queue.items():
@@ -381,8 +381,9 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 @register_command("detail", help_text="Get details for target item.")
 async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     if update.effective_message:
-        _args = get_single_arg_from(update, context, _cmd)
-        _reply_uuid = get_uuid_from(update, _args)
+        _arg = get_single_arg_from(update, context, _cmd)
+
+        _reply_uuid = get_uuid_from(update, _arg) if _arg else None
 
         if _reply_uuid:
             _item = get_mi_queue().get(_reply_uuid.lower())
