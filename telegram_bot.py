@@ -266,7 +266,9 @@ async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
         # ]
 
         await update.effective_message.reply_text(
-            "Hello! I'm alive.\n" "/help - Show help",
+            "Hello! I'm alive.\n" "You will receive broadcast messages.",
+            "/help - Show help\n"
+            "/stop - Stop receiving broadcast messages and discontinue using this bot.",
             # reply_markup=InlineKeyboardMarkup(_keyboard),
         )
 
@@ -275,6 +277,11 @@ async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     await remove_known_chat(update, context)
     await remove_notify_chat(update, context)
+
+    if update.effective_message:
+        await update.effective_message.reply_text(
+            "This chat has been removed, there will be no further unprompted messages."
+        )
 
 
 @register_command("echo", help_text="Echo.")
@@ -301,12 +308,20 @@ async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: st
 
 @register_command("notify", help_text="Enable notifications for new items.")
 async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    if update.effective_message:
+        await update.effective_message.reply_text(
+            "You have been added to notifications.\n Use /nonotify to stop."
+        )
     await add_notify_chat(update, context)
 
 
 @register_command("nonotify", help_text="Stop receiving notifications.")
 async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     await remove_notify_chat(update, context)
+    if update.effective_message:
+        await update.effective_message.reply_text(
+            "You have been removed from notifications.\n Use /notify to restart."
+        )
 
 
 @register_command("list", help_text="List current items.")
