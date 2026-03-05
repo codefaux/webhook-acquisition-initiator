@@ -397,6 +397,10 @@ async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("notify", help_text="Enable notifications for new items.")
 async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    if get_single_arg_from(update, context, _cmd):
+        await send_usage(update, _cmd)
+        return
+
     if update.effective_message:
         await update.effective_message.reply_text(
             "You have been added to notifications.\n Use /nonotify to stop."
@@ -406,6 +410,10 @@ async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
 
 @register_command(["nonotify", "stopnotify"], help_text="Stop receiving notifications.")
 async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    if get_single_arg_from(update, context, _cmd):
+        await send_usage(update, _cmd)
+        return
+
     await remove_notify_chat(update, context)
     if update.effective_message:
         await update.effective_message.reply_text(
