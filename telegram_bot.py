@@ -229,6 +229,21 @@ def get_single_arg_from(
     return None
 
 
+def get_args_list_from(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
+) -> list[str] | None:
+    if context.args:
+        return context.args
+    elif (
+        update.effective_message
+        and update.effective_message.text
+        and update.effective_message.text.startswith(_cmd)
+    ):
+        return update.effective_message.text.removeprefix(_cmd).strip().split()
+
+    return None
+
+
 def extract_uuid(message_text: str | None) -> str | None:
     line_pattern = r"^UUID:\s*([0-9a-f-]{36})$"
     arg_pattern = r"([0-9a-f-]{36})"
