@@ -357,24 +357,23 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("detail", help_text="Get details for current items.")
 async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    if not update.effective_message:
-        return
+    if update.effective_message:
+        _args = get_args_from(update, context, _cmd)
+        _reply_uuid = get_uuid_from(update, _args)
 
-    _args = get_args_from(update, context, _cmd)
-    _reply_uuid = get_uuid_from(update, _args)
+        if _reply_uuid:
+            _queue: mi_dict_type = get_mi_queue()
+            _idx = 0
+            for _key, _item in _queue.items():
+                _idx += 1
+                _data: mi_tuple_type = (_key, _item)
+                if _key.lower() == _reply_uuid.lower():
+                    await update.effective_message.reply_text(
+                        mi_data_to_detailed_message(_data, f"Item {_idx}:"),
+                        parse_mode="HTML",
+                    )
+            return
 
-    if _reply_uuid:
-        _queue: mi_dict_type = get_mi_queue()
-        _idx = 0
-        for _key, _item in _queue.items():
-            _idx += 1
-            _data: mi_tuple_type = (_key, _item)
-            if _key.lower() == _reply_uuid.lower():
-                await update.effective_message.reply_text(
-                    mi_data_to_detailed_message(_data, f"Item {_idx}:"),
-                    parse_mode="HTML",
-                )
-    else:
         await update.effective_message.reply_text(
             f"Usage: <code>{_cmd}</code> as reply to target, or <code>{_cmd} UUID</code>",
             parse_mode="HTML",
