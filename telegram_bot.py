@@ -335,7 +335,7 @@ async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
     await add_notify_chat(update, context)
 
 
-@register_command("nonotify", help_text="Stop receiving notifications.")
+@register_command(["nonotify", "stopnotify"], help_text="Stop receiving notifications.")
 async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     await remove_notify_chat(update, context)
     if update.effective_message:
