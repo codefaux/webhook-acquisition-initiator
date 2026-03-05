@@ -259,14 +259,14 @@ def extract_uuid(message_text: str | None) -> str | None:
     return None
 
 
-def get_uuid_from(update, _args) -> str | None:
-    if update.effective_message.reply_to_message:
+def get_uuid_from(update: Update, text: str) -> str | None:
+    if update.effective_message and update.effective_message.reply_to_message:
         return extract_uuid(update.effective_message.reply_to_message.text)
-    elif _args:
-        if _args == "all":
+    elif text:
+        if text == "all":
             return "all"
         else:
-            return extract_uuid(_args)
+            return extract_uuid(text)
 
     return None
 
