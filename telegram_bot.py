@@ -45,7 +45,9 @@ cmd_dict: dict[str, dict] = {}
 
 
 def register_command(
-    name: str | list[str], help_text: str, usage_text: str | None = "`{self}`"
+    name: str | list[str],
+    help_text: str | list[str],
+    usage_text: str | None = "`{self}`",
 ):
     def decorator(func):
         @wraps(func)
@@ -55,22 +57,22 @@ def register_command(
             elif isinstance(name, list):
                 return await func(*args, **kwargs, _cmd=f"/{name[0]}")
 
-        if isinstance(name, str):
-            cmd_dict[name] = {
-                "func": wrapper,
-                "help": help_text,
-                "usage": usage_text.format(self=f"/{name}") if usage_text else None,
-            }
-        elif isinstance(name, list):
-            for _name in name:
-                cmd_dict[_name] = {
-                    "func": wrapper,
-                    "help": help_text,
-                    "usage": (
-                        usage_text.format(self=f"/{_name}") if usage_text else None
-                    ),
-                }
+        for _idx, _name in enumerate(name if isinstance(name, list) else [name]):
+            _entry: dict = {"func": wrapper}
 
+            if isinstance(help_text, str):
+                _entry["help"] = help_text
+            elif isinstance(help_text, list):
+                _entry["help"] = help_text[_idx]
+
+            if not usage_text:
+                pass
+            elif isinstance(usage_text, str):
+                _entry["usage"] = usage_text.format(self=f"/{name}")
+            elif isinstance(usage_text, list):
+                _entry["usage"] = usage_text[_idx].format(self=f"/{_name}")
+
+            cmd_dict[_name] = _entry
         return wrapper
 
     return decorator
