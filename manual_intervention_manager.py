@@ -85,6 +85,10 @@ def set_mi_queue_item(uuid: str, item: mi_inner_type):
     mi_queue[uuid] = item
 
 
+def drop_mi_queue_item(uuid: str):
+    mi_queue.pop(uuid)
+
+
 def get_mi_queue_item(uuid: str) -> mi_inner_type:
     return mi_queue[uuid]
 
