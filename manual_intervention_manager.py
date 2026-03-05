@@ -30,23 +30,25 @@ mi_notify_listeners: list[Callable[[mi_tuple_type], None]] = []
 
 def load_mi_queue():
     global mi_queue
-    mi_queue = {}
-    if os.path.exists(MI_QUEUE_FILE):
-        with open(MI_QUEUE_FILE, "r") as f:
-            try:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    mi_queue.update(data)
-            except json.JSONDecodeError:
-                _log.msg(
-                    "Failed to decode queue JSON; starting with empty manual intervention queue."
-                )
+    with mi_queue_lock:
+        mi_queue = {}
+        if os.path.exists(MI_QUEUE_FILE):
+            with open(MI_QUEUE_FILE, "r") as f:
+                try:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        mi_queue.update(data)
+                except json.JSONDecodeError:
+                    _log.msg(
+                        "Failed to decode queue JSON; starting with empty manual intervention queue."
+                    )
 
 
 def save_mi_queue():
     global mi_queue
-    with open(MI_QUEUE_FILE, "w") as f:
-        json.dump(mi_queue, f, indent=2)
+    with mi_queue_lock:
+        with open(MI_QUEUE_FILE, "w") as f:
+            json.dump(mi_queue, f, indent=2)
 
 
 def enqueue(mi_data: mi_inner_type) -> None:
@@ -58,7 +60,8 @@ def enqueue(mi_data: mi_inner_type) -> None:
 
     with mi_queue_lock:
         mi_queue[_uuid] = mi_data
-        save_mi_queue()
+
+    save_mi_queue()
     mi_current = (_uuid, mi_data)
     mi_queue_notify_event.set()
 
@@ -82,11 +85,14 @@ def get_mi_queue() -> mi_dict_type:
 
 
 def set_mi_queue_item(uuid: str, item: mi_inner_type):
-    mi_queue[uuid] = item
+    with mi_queue_lock:
+        mi_queue[uuid] = item
+    save_mi_queue()
 
 
 def drop_mi_queue_item(uuid: str):
-    mi_queue.pop(uuid)
+    with mi_queue_lock:
+        mi_queue.pop(uuid)
 
 
 def get_mi_queue_item(uuid: str) -> mi_inner_type:
