@@ -206,7 +206,7 @@ async def send_to_known(message: str):
         await send_message(message, _target)
 
 
-def get_cmd_args(
+def get_args_from(
     update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
 ) -> str | None:
     if context.args:
@@ -232,6 +232,18 @@ def extract_uuid(message_text: str | None) -> str | None:
         match_arg = re.search(arg_pattern, message_text, re.IGNORECASE)
         if match_arg:
             return match_arg.group(1)
+
+    return None
+
+
+def get_uuid_from(update, _args) -> str | None:
+    if update.effective_message.reply_to_message:
+        return extract_uuid(update.effective_message.reply_to_message.text)
+    elif _args:
+        if _args == "all":
+            return "all"
+        else:
+            return extract_uuid(_args)
 
     return None
 
@@ -286,7 +298,7 @@ async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("echo", help_text="Echo.")
 async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = get_cmd_args(update, context, _cmd)
+    _args = get_args_from(update, context, _cmd)
 
     if update.effective_message:
         if _args:
@@ -297,7 +309,7 @@ async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 @register_command("echoall", help_text="Echo to notification channels.")
 async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = get_cmd_args(update, context, _cmd)
+    _args = get_args_from(update, context, _cmd)
 
     if _args:
         await send_to_notify(_args)
@@ -326,7 +338,7 @@ async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: st
 
 @register_command("list", help_text="List current items.")
 async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _args = get_cmd_args(update, context, _cmd)
+    _args = get_args_from(update, context, _cmd)
 
     if update.effective_message:
         if not _args:
@@ -348,16 +360,8 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
     if not update.effective_message:
         return
 
-    _reply_uuid = None
-    _args = get_cmd_args(update, context, _cmd)
-
-    if update.effective_message.reply_to_message:
-        _reply_uuid = extract_uuid(update.effective_message.reply_to_message.text)
-    elif _args:
-        if _args == "all":
-            _reply_uuid = "all"
-        else:
-            _reply_uuid = extract_uuid(_args)
+    _args = get_args_from(update, context, _cmd)
+    _reply_uuid = get_uuid_from(update, _args)
 
     if _reply_uuid:
         _queue: mi_dict_type = get_mi_queue()
