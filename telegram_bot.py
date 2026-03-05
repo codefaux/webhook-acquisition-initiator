@@ -13,7 +13,7 @@ from manual_intervention_manager import (get_mi_queue, mi_dict_type,
 from manual_intervention_manager import \
     remove_notify_listener as remove_mi_notify
 # from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram import Message, Update
+from telegram import Update
 from telegram.ext import (Application, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
