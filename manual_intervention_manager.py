@@ -77,8 +77,16 @@ def remove_notify_listener(callback: Callable[[mi_tuple_type], None]) -> None:
         pass
 
 
-def get_mi_queue():
+def get_mi_queue() -> mi_dict_type:
     return mi_queue
+
+
+def set_mi_queue_item(uuid: str, item: mi_inner_type):
+    mi_queue[uuid] = item
+
+
+def get_mi_queue_item(uuid: str) -> mi_inner_type:
+    return mi_queue[uuid]
 
 
 def mi_thread_worker(stop_event: threading.Event):
