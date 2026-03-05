@@ -236,22 +236,6 @@ def extract_uuid(message_text: str | None) -> str | None:
     return None
 
 
-async def _check_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message:
-        message = update.message
-    elif update.channel_post:
-        message = update.channel_post
-    else:
-        return
-
-    if message.reply_to_message:
-        if (
-            message.reply_to_message.from_user
-            and message.reply_to_message.from_user.id == context.bot.id
-        ):
-            await message.reply_text("You replied to my message!")
-
-
 async def send_message(text: str, chat_id: str | None):
     if not app:
         raise RuntimeError("Bot not running yet")
@@ -436,9 +420,9 @@ async def bot_start(stop_event: threading.Event):
             MessageHandler(filters.Regex(f"^/{_cmd}"), _val["func"]), group=1
         )
 
-    app.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, _check_reply), group=2
-    )
+    # app.add_handler(
+    #     MessageHandler(filters.TEXT & ~filters.COMMAND, _check_reply), group=2
+    # )
 
     await app.initialize()
     await app.updater.start_polling(  # pyright: ignore[reportOptionalMemberAccess]
