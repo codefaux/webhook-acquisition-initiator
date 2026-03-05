@@ -370,16 +370,15 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
         _reply_uuid = get_uuid_from(update, _args)
 
         if _reply_uuid:
-            _queue: mi_dict_type = get_mi_queue()
-            _idx = 0
-            for _key, _item in _queue.items():
-                _idx += 1
-                _data: mi_tuple_type = (_key, _item)
-                if _key.lower() == _reply_uuid.lower():
-                    await update.effective_message.reply_text(
-                        mi_data_to_detailed_message(_data, f"Item {_idx}:"),
-                        parse_mode="HTML",
-                    )
+            _item = get_mi_queue().get(_reply_uuid.lower())
+
+            if _item:
+                await update.effective_message.reply_text(
+                    mi_data_to_detailed_message((_reply_uuid.lower(), _item)),
+                    parse_mode="HTML",
+                )
+            else:
+                await update.effective_message.reply_text("Error: Target not found.")
             return
 
         await update.effective_message.reply_text(
