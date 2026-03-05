@@ -75,6 +75,10 @@ def register_command(
     return decorator
 
 
+class UsageError(Exception):
+    pass
+
+
 def mi_data_to_detailed_message(
     mi_data: mi_tuple_type, header: str | None = None
 ) -> str:
