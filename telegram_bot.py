@@ -484,11 +484,12 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
 
 
 @register_command(
-    ["set"],
-    help_text="Set details for target item.",
-    usage_text="`{self} PARAMETER value` as reply to target OR\n`{self} UUID PARAMETER value` to specify by UUID\nWhere PARAMETER = series|season|episode|title|score",
+    ["set", "add"],
+    help_text=["Set parameters in target item.", "Add parameters to target item."],
+    usage_text='`{self} PARAMETER VALUE` as reply to target OR\n`{self} UUID PARAMETER VALUE` to specify by UUID\nUse single double-quote (`"`) to clear parameter.',
 )
 async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    _called_as = (get_called_as(update) or _cmd.removeprefix("/")).lower()
     try:
         if update.effective_message:
             _args = get_args_list_from(update, context, _cmd)
@@ -507,7 +508,7 @@ async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
             if not _item:
                 await update.effective_message.reply_text("Error: Target not found.")
-                return
+                raise UsageError
 
             if not update.effective_message.reply_to_message:
                 _arg_idx = 1
@@ -515,38 +516,74 @@ async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
             _parameter = _args[_arg_idx]
             _subparameter = None
 
-            if _parameter not in _item.keys():
+            if _called_as != "add" and _parameter not in _item.keys():
                 await update.effective_message.reply_text(
-                    "Error: Parameter not present in target."
+                    "Error: Parameter not present in target. Use `/add` to inject parameters.",
+                    parse_mode="Markdown",
                 )
-                return
+                raise UsageError
 
             _subcheck = _item[_parameter]
-            if isinstance(_subcheck, dict):
+            if isinstance(_subcheck, dict) and _args[_arg_idx + 1] != '"':
                 _arg_idx += 1
                 _subparameter = _args[_arg_idx]
 
-                if _subparameter not in _subcheck.keys():
+                if _called_as != "add" and _subparameter not in _subcheck.keys():
                     await update.effective_message.reply_text(
-                        "Error: Parameter[Subparameter] not present in target."
+                        "Error: Parameter/Subparameter not present in target. Use `/add` to inject parameters.",
+                        parse_mode="Markdown",
                     )
-                    return
+                    raise UsageError
 
             _arg_idx += 1
             _value = " ".join(_args[_arg_idx:])
 
             if not _value:
                 await update.effective_message.reply_text(
-                    'Error: Value must be provided. Use double-quote (") for None.'
+                    'Error: Value must be provided. Use a single double-quote (`"`) to clear parameter.'
                 )
-                return
+                raise UsageError
 
             if _subparameter is None:
-                _item[_parameter] = _value
+                if _value == '"':
+                    _old = _item[_parameter]
+                    _item.pop(_parameter)
+                    await update.effective_message.reply_text(
+                        f"Removed '{_parameter}': was '{_old}'"
+                    )
+                else:
+                    _old = _item[_parameter]
+                    _item[_parameter] = _value
+                    await update.effective_message.reply_text(
+                        f"Updated '{_parameter}' to '{_value}' from '{_old}'"
+                    )
             else:
-                _item[_parameter][  # pyright: ignore[reportIndexIssue]
-                    _subparameter
-                ] = _value
+                if _value == '"':
+                    _old = _item[
+                        _parameter
+                    ].get(  # pyright: ignore[reportAttributeAccessIssue]
+                        _subparameter
+                    )
+                    _item[
+                        _parameter
+                    ].pop(  # pyright: ignore[reportAttributeAccessIssue]
+                        _subparameter
+                    )
+                    await update.effective_message.reply_text(
+                        f"Removed '{_parameter}[{_subparameter}]': was '{_old}'"
+                    )
+                else:
+                    _old = _item[
+                        _parameter
+                    ].get(  # pyright: ignore[reportAttributeAccessIssue]
+                        _subparameter
+                    )
+                    _item[_parameter][  # pyright: ignore[reportIndexIssue]
+                        _subparameter
+                    ] = _value
+                    await update.effective_message.reply_text(
+                        f"Updated '{_parameter}[{_subparameter}]' to '{_value}' from '{_old}'"
+                    )
 
             set_mi_queue_item(_target_uuid.lower(), _item)
 
@@ -556,7 +593,10 @@ async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
             )
 
     except UsageError:
-        await send_usage(update, _cmd)
+        if _called_as:
+            await send_usage(update, _called_as)
+        else:
+            await send_usage(update, _cmd)
 
 
 @register_command("help", help_text="Command list with short descriptions.")
