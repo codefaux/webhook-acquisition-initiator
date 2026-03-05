@@ -291,7 +291,7 @@ def extract_uuid(message_text: str | None) -> str | None:
     return None
 
 
-def get_uuid_from(update: Update, text: str) -> str | None:
+def get_uuid_from(update: Update, text: str | None) -> str | None:
     if update.effective_message and update.effective_message.reply_to_message:
         return extract_uuid(update.effective_message.reply_to_message.text)
     elif text:
