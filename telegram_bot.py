@@ -392,7 +392,11 @@ async def _help(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     if update.effective_message:
         _msg = "Available commands:\n"
         for _key, _val in cmd_dict.items():
-            _msg += f"/{_key} - {_val["help"]}\n"
+            _help = _val["help"]
+            if isinstance(_help, str):
+                _msg += f"/{_key} - {_help}\n"
+            elif isinstance(_help, list):
+                _msg += f"/{_key} - {_help[0]}\n"
         await update.effective_message.reply_text(_msg)
 
 
