@@ -68,7 +68,7 @@ def register_command(
             if not usage_text:
                 pass
             elif isinstance(usage_text, str):
-                _entry["usage"] = usage_text.format(self=f"/{name}")
+                _entry["usage"] = usage_text.format(self=f"/{_name}")
             elif isinstance(usage_text, list):
                 _entry["usage"] = usage_text[_idx].format(self=f"/{_name}")
 
