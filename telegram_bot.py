@@ -228,18 +228,28 @@ async def send_to_known(message: str):
 
 
 def get_single_arg_from(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    _cmd: str,
+    raiseOnArg: bool | None = None,
 ) -> str | None:
+    _arg = None
+
     if context.args:
-        return " ".join(context.args)
+        _arg = " ".join(context.args)
     elif (
         update.effective_message
         and update.effective_message.text
         and update.effective_message.text.startswith(_cmd)
     ):
-        return update.effective_message.text.removeprefix(_cmd).strip()
+        _arg = update.effective_message.text.removeprefix(_cmd).strip()
 
-    return None
+    if _arg and raiseOnArg is True:
+        raise UsageError()
+    if not _arg and raiseOnArg is False:
+        raise UsageError()
+
+    return _arg
 
 
 def get_args_list_from(
