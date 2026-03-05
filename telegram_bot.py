@@ -285,6 +285,18 @@ async def send_message(text: str, chat_id: str | None):
         await app.bot.send_message(chat_id=target_chat_id, text=text)
 
 
+async def send_usage(update: Update, _cmd: str):
+    if not app:
+        raise RuntimeError("Bot not running yet")
+
+    if update.effective_message:
+        _usage = cmd_dict[_cmd].get("usage")
+        if _usage:
+            await update.effective_message.reply_text(
+                f"Usage:\n{_usage}", parse_mode="HTML"
+            )
+
+
 # ========
 # COMMANDS
 # ========
