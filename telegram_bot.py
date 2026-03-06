@@ -651,28 +651,22 @@ async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as
 async def _queue_saveload(
     update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str
 ):
-    _called_as = get_called_as(update)
-    try:
-        get_single_arg_from(update, context, called_as, False)
-        if update.effective_message:
-            match _called_as:
-                case "savequeue":
-                    save_mi_queue()
-                    await update.effective_message.reply_text(
-                        "Manual Intervention queue saved."
-                    )
-                case "loadqueue":
-                    load_mi_queue()
-                    await update.effective_message.reply_text(
-                        "Manual Intervention queue reloaded."
-                    )
-                case _:
-                    raise UsageError
-    except UsageError:
-        if _called_as:
-            await send_usage(update, _called_as)
-        else:
-            await send_usage(update, called_as)
+    get_single_arg_from(update, context, called_as, RAISE_ON_ARG)
+
+    if update.effective_message:
+        match called_as:
+            case "savequeue":
+                save_mi_queue()
+                await update.effective_message.reply_text(
+                    "Manual Intervention queue saved."
+                )
+            case "loadqueue":
+                load_mi_queue()
+                await update.effective_message.reply_text(
+                    "Manual Intervention queue reloaded."
+                )
+            case _:
+                raise UsageError
 
 
 @register_command("help", help_text="Command list with short descriptions.")
