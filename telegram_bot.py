@@ -248,8 +248,8 @@ def get_single_arg_from(
     context: ContextTypes.DEFAULT_TYPE,
     called_as: str,
     raiseOnArg: bool | None = None,
-) -> str | None:
-    _arg = None
+) -> str:
+    _arg = ""
 
     if context.args:
         _arg = " ".join(context.args)
@@ -273,8 +273,9 @@ def get_args_list_from(
     context: ContextTypes.DEFAULT_TYPE,
     called_as: str,
     raiseOnArg: bool | None = None,
-) -> list[str] | None:
-    _args = None
+) -> list[str]:
+    _args = []
+
     if context.args:
         _args = context.args
     elif (
