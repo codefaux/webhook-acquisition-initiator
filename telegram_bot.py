@@ -592,6 +592,7 @@ async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: st
     "drop",
     help_text="Drop the item from the Manual Intervention queue.",
     usage_text=USAGE_TARGET_BASIC,
+    detail_text="This command does NOT automatically save.",
 )
 async def _drop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
     if update.effective_message:
@@ -609,7 +610,7 @@ async def _drop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: s
             # save_mi_queue() -- Intentionally skipped!
 
             await update.effective_message.reply_text(
-                f"Item {_target_uuid} ({_item["title"]}) dropped.\n<b>YOU MUST /savequeue NEXT TO CONFIRM OR CHANGES WILL NOT PERSIST.</b>",
+                f"Item {_target_uuid} ({_item["title"]}) dropped.\n<b>YOU MUST <code>/savequeue</code> NEXT TO CONFIRM OR CHANGES WILL NOT PERSIST.</b>",
                 parse_mode="HTML",
             )
         else:
@@ -618,7 +619,7 @@ async def _drop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: s
 
 @register_command(
     ["enqueue", "requeue"],
-    help_text="Place item in Decision queue, remove it from Manual Intervention state.",
+    help_text="Move item to Decision queue.",
     usage_text=USAGE_TARGET_BASIC,
 )
 async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
