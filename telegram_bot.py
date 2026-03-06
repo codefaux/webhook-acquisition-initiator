@@ -57,10 +57,11 @@ def register_command(
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            if isinstance(name, str):
-                return await func(*args, **kwargs, _cmd=f"/{name}")
-            elif isinstance(name, list):
-                return await func(*args, **kwargs, _cmd=f"/{name[0]}")
+            _called_as = get_called_as(args[0])
+            try:
+                return await func(*args, **kwargs, called_as=_called_as)
+            except UsageError:
+                await send_usage(args[0], _called_as)
 
         for _idx, _name in enumerate(name if isinstance(name, list) else [name]):
             _entry: dict = {"func": wrapper}
@@ -235,17 +236,17 @@ async def send_to_known(message: str):
         await send_message(message, _target)
 
 
-def get_called_as(update: Update) -> str | None:
+def get_called_as(update: Update) -> str:
+    _val = ""
     if update.effective_message and update.effective_message.text:
-        return update.effective_message.text.removeprefix("/").split()[0].lower()
-
-    return None
+        _val = update.effective_message.text.removeprefix("/").split()[0].lower()
+    return _val
 
 
 def get_single_arg_from(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
-    _cmd: str,
+    called_as: str,
     raiseOnArg: bool | None = None,
 ) -> str | None:
     _arg = None
@@ -255,9 +256,9 @@ def get_single_arg_from(
     elif (
         update.effective_message
         and update.effective_message.text
-        and update.effective_message.text.startswith(_cmd)
+        and update.effective_message.text.startswith(f"/{called_as}")
     ):
-        _arg = update.effective_message.text.removeprefix(_cmd).strip()
+        _arg = update.effective_message.text.removeprefix(f"/{called_as}").strip()
 
     if _arg and len(_arg) > 0 and raiseOnArg is RAISE_ON_ARG:
         raise UsageError()
@@ -270,7 +271,7 @@ def get_single_arg_from(
 def get_args_list_from(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
-    _cmd: str,
+    called_as: str,
     raiseOnArg: bool | None = None,
 ) -> list[str] | None:
     _args = None
@@ -279,9 +280,11 @@ def get_args_list_from(
     elif (
         update.effective_message
         and update.effective_message.text
-        and update.effective_message.text.startswith(_cmd)
+        and update.effective_message.text.startswith(f"/{called_as}")
     ):
-        _args = update.effective_message.text.removeprefix(_cmd).strip().split()
+        _args = (
+            update.effective_message.text.removeprefix(f"/{called_as}").strip().split()
+        )
 
     if _args and raiseOnArg is RAISE_ON_ARG:
         raise UsageError()
@@ -330,12 +333,12 @@ async def send_message(text: str, chat_id: str | None):
         await app.bot.send_message(chat_id=target_chat_id, text=text)
 
 
-async def send_usage(update: Update, _cmd: str):
+async def send_usage(update: Update, called_as: str):
     if not app:
         raise RuntimeError("Bot not running yet")
 
     if update.effective_message:
-        _target = cmd_dict.get(_cmd.removeprefix("/"))
+        _target = cmd_dict.get(called_as)
         if _target:
             _usage = _target.get("usage")
             if _usage:
@@ -350,10 +353,8 @@ async def send_usage(update: Update, _cmd: str):
 
 
 @register_command("start", help_text="Start using the bot.")
-async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    if get_single_arg_from(update, context, _cmd):
-        await send_usage(update, _cmd)
-        return
+async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
+    get_single_arg_from(update, context, called_as, RAISE_ON_ARG)
 
     if update.effective_message:
         # _keyboard = [
@@ -366,7 +367,8 @@ async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
         # ]
 
         await update.effective_message.reply_text(
-            "Hello! I'm alive.\n" "You will receive broadcast messages.",
+            "Hello! I'm alive.\n"
+            "You will receive broadcast messages.\n"
             "/help - Show help\n"
             "/stop - Stop receiving broadcast messages and discontinue using this bot.",
             # reply_markup=InlineKeyboardMarkup(_keyboard),
@@ -374,9 +376,9 @@ async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 
 @register_command("stop", help_text="Stop using the bot and disable all notifications.")
-async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    if get_single_arg_from(update, context, _cmd):
-        await send_usage(update, _cmd)
+async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
+    if get_single_arg_from(update, context, called_as):
+        await send_usage(update, called_as)
         return
 
     await remove_known_chat(update, context)
@@ -393,31 +395,31 @@ async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     help_text="Echo to notification channels.",
     usage_text="`{self} text`",
 )
-async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
     try:
-        _arg = get_single_arg_from(update, context, _cmd, True)
+        _arg = get_single_arg_from(update, context, called_as, True)
 
         if _arg:
             await send_to_notify(_arg)
     except UsageError:
-        await send_usage(update, _cmd)
+        await send_usage(update, called_as)
 
 
 @register_command("echo", help_text="Echo.", usage_text="`{self} <text>`")
-async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
     try:
-        _arg = get_single_arg_from(update, context, _cmd, True)
+        _arg = get_single_arg_from(update, context, called_as, True)
 
         if update.effective_message and _arg:
             await update.effective_message.reply_text(_arg)
     except UsageError:
-        await send_usage(update, _cmd)
+        await send_usage(update, called_as)
 
 
 @register_command("notify", help_text="Enable notifications for new items.")
-async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    if get_single_arg_from(update, context, _cmd):
-        await send_usage(update, _cmd)
+async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
+    if get_single_arg_from(update, context, called_as):
+        await send_usage(update, called_as)
         return
 
     if update.effective_message:
@@ -428,9 +430,9 @@ async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
 
 
 @register_command(["nonotify", "stopnotify"], help_text="Stop receiving notifications.")
-async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    if get_single_arg_from(update, context, _cmd):
-        await send_usage(update, _cmd)
+async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
+    if get_single_arg_from(update, context, called_as):
+        await send_usage(update, called_as)
         return
 
     await remove_notify_chat(update, context)
@@ -441,9 +443,9 @@ async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: st
 
 
 @register_command("list", help_text="List current items.")
-async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    if get_single_arg_from(update, context, _cmd):
-        await send_usage(update, _cmd)
+async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
+    if get_single_arg_from(update, context, called_as):
+        await send_usage(update, called_as)
         return
 
     if update.effective_message:
@@ -463,10 +465,10 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     help_text="Get details for target item.",
     usage_text=USAGE_TARGET_BASIC,
 )
-async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
     try:
         if update.effective_message:
-            _arg = get_single_arg_from(update, context, _cmd)
+            _arg = get_single_arg_from(update, context, called_as)
 
             _target_uuid = get_uuid_from(update, _arg)
 
@@ -485,7 +487,7 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
             return
 
     except UsageError:
-        await send_usage(update, _cmd)
+        await send_usage(update, called_as)
 
 
 @register_command(
@@ -493,11 +495,11 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str)
     help_text=["Set parameters in target item.", "Add parameters to target item."],
     usage_text='`{self} PARAMETER VALUE` as reply to target OR\n`{self} UUID PARAMETER VALUE` to specify by UUID\nUse single double-quote (`"`) to clear parameter.',
 )
-async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
-    _called_as = (get_called_as(update) or _cmd.removeprefix("/")).lower()
+async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
+    _called_as = (get_called_as(update) or called_as).lower()
     try:
         if update.effective_message:
-            _args = get_args_list_from(update, context, _cmd)
+            _args = get_args_list_from(update, context, called_as)
             _arg_idx = 0
 
             if not _args or len(_args) < 2:  # AT LEAST /set [uuid] param value
@@ -601,7 +603,7 @@ async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
         if _called_as:
             await send_usage(update, _called_as)
         else:
-            await send_usage(update, _cmd)
+            await send_usage(update, called_as)
 
 
 @register_command(
@@ -609,10 +611,10 @@ async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     help_text="Drop the item from the Manual Intervention queue.",
     usage_text=USAGE_TARGET_BASIC,
 )
-async def _drop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+async def _drop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
     try:
         if update.effective_message:
-            _arg = get_single_arg_from(update, context, _cmd)
+            _arg = get_single_arg_from(update, context, called_as)
 
             _target_uuid = get_uuid_from(update, _arg)
 
@@ -633,7 +635,7 @@ async def _drop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
                 await update.effective_message.reply_text("Error: Target not found.")
 
     except UsageError:
-        await send_usage(update, _cmd)
+        await send_usage(update, called_as)
 
 
 @register_command(
@@ -641,10 +643,10 @@ async def _drop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     help_text="Place item in Decision queue, remove it from Manual Intervention state.",
     usage_text=USAGE_TARGET_BASIC,
 )
-async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
     try:
         if update.effective_message:
-            _arg = get_single_arg_from(update, context, _cmd)
+            _arg = get_single_arg_from(update, context, called_as)
 
             _target_uuid = get_uuid_from(update, _arg)
 
@@ -671,7 +673,7 @@ async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
                 await update.effective_message.reply_text("Error: Target not found.")
 
     except UsageError:
-        await send_usage(update, _cmd)
+        await send_usage(update, called_as)
 
 
 @register_command(
@@ -682,11 +684,11 @@ async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
     ],
 )
 async def _queue_saveload(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
+    update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str
 ):
     _called_as = get_called_as(update)
     try:
-        get_single_arg_from(update, context, _cmd, True)
+        get_single_arg_from(update, context, called_as, False)
         if update.effective_message:
             match _called_as:
                 case "savequeue":
@@ -705,11 +707,11 @@ async def _queue_saveload(
         if _called_as:
             await send_usage(update, _called_as)
         else:
-            await send_usage(update, _cmd)
+            await send_usage(update, called_as)
 
 
 @register_command("help", help_text="Command list with short descriptions.")
-async def _help(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+async def _help(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
     if update.effective_message:
         _msg = "Available commands:\n"
         for _key, _val in cmd_dict.items():
