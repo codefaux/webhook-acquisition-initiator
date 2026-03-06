@@ -732,7 +732,7 @@ async def _help(
     if update.effective_message:
         _msg = "Available commands:\n"
         for _key, _val in cmd_dict.items():
-            if len(_arg) == 0 or _key == _arg or _arg == "*" or _arg == "all":
+            if _arg in ["", _key, "*", "all"]:
                 _help = _val["help"]
                 _msg += f"/{_key} - {_help}\n"
 
