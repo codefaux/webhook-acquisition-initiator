@@ -61,7 +61,7 @@ def enqueue(item: dict):
         decision_queue.append(item)
         save_decision_queue()
         # queue_condition.notify()
-        # TODO : VERIFY : Disable immediate queue dispatch bypassing queue timer!
+        # TODO : Instead of bypass, wake queue if last queue action time was sufficiently distant
 
 
 def dequeue(item: dict) -> bool:
