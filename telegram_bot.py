@@ -40,6 +40,8 @@ if RUN_TELEGRAM_BOT and not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("Missing TELEGRAM_BOT_TOKEN environment variable")
 
 USAGE_TARGET_BASIC: Final[str] = "`{self}` as reply to target, or `{self} UUID`"
+RAISE_ON_ARG: Final[bool] = True
+RAISE_NO_ARG: Final[bool] = False
 
 app: Application | None = None
 loop: asyncio.AbstractEventLoop | None = None
@@ -257,9 +259,9 @@ def get_single_arg_from(
     ):
         _arg = update.effective_message.text.removeprefix(_cmd).strip()
 
-    if _arg and raiseOnArg is True:
+    if _arg and len(_arg) > 0 and raiseOnArg is RAISE_ON_ARG:
         raise UsageError()
-    if not _arg and raiseOnArg is False:
+    if (not _arg or len(_arg) == 0) and raiseOnArg is RAISE_NO_ARG:
         raise UsageError()
 
     return _arg
@@ -281,9 +283,9 @@ def get_args_list_from(
     ):
         _args = update.effective_message.text.removeprefix(_cmd).strip().split()
 
-    if _args and raiseOnArg is True:
+    if _args and raiseOnArg is RAISE_ON_ARG:
         raise UsageError()
-    if not _args and raiseOnArg is False:
+    if not _args and raiseOnArg is RAISE_NO_ARG:
         raise UsageError()
 
     return _args
