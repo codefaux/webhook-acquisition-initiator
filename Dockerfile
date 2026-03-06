@@ -1,7 +1,7 @@
 FROM ghcr.io/codefaux/ytdlp-python-base:latest
 
 # Copy application code
-COPY requirements.txt aging_queue_manager.py thread_manager.py decision_queue_manager.py download_queue_manager.py main.py processor.py server.py util.py ytdlp_interface.py /app/
+COPY requirements.txt aging_queue_manager.py decision_queue_manager.py download_queue_manager.py main.py manual_intervention_manager.py processor.py server.py telegram_bot.py thread_manager.py util.py ytdlp_interface.py /app/
 
 # Install Python packages
 WORKDIR /app
@@ -28,6 +28,9 @@ ENV AGING_QUEUE_INTERVAL=5
 ENV RUN_AGING_QUEUE=1
 ENV RUN_DOWNLOAD_QUEUE=1
 ENV RUN_DECISION_QUEUE=1
+ENV RUN_TELEGRAM_BOT=1
+ENV RUN_MI_THREAD=1
+ENV MATCHER_THREADS=12
 
 # Default command
 CMD ["python", "main.py"]
