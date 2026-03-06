@@ -603,6 +603,38 @@ async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
 
 
 @register_command(
+    "drop",
+    help_text="Drop the item from the Manual Intervention queue.",
+    usage_text=USAGE_TARGET_BASIC,
+)
+async def _drop(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
+    try:
+        if update.effective_message:
+            _arg = get_single_arg_from(update, context, _cmd)
+
+            _target_uuid = get_uuid_from(update, _arg)
+
+            if not _target_uuid:
+                raise UsageError
+
+            _item = get_mi_queue_item(_target_uuid.lower())
+
+            if _item:
+                drop_mi_queue_item(_target_uuid)
+                # save_mi_queue() -- Intentionally skipped!
+
+                await update.effective_message.reply_text(
+                    f"Item {_target_uuid} ({_item["title"]}) dropped.\n<b>YOU MUST /savequeue NEXT TO CONFIRM OR CHANGES WILL NOT PERSIST.</b>",
+                    parse_mode="HTML",
+                )
+            else:
+                await update.effective_message.reply_text("Error: Target not found.")
+
+    except UsageError:
+        await send_usage(update, _cmd)
+
+
+@register_command(
     ["enqueue", "requeue"],
     help_text="Place item in Decision queue, remove it from Manual Intervention state.",
     usage_text=USAGE_TARGET_BASIC,
