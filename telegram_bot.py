@@ -585,30 +585,26 @@ async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: st
     usage_text=USAGE_TARGET_BASIC,
 )
 async def _drop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    try:
-        if update.effective_message:
-            _arg = get_single_arg_from(update, context, called_as)
+    if update.effective_message:
+        _arg = get_single_arg_from(update, context, called_as)
 
-            _target_uuid = get_uuid_from(update, _arg)
+        _target_uuid = get_uuid_from(update, _arg)
 
-            if not _target_uuid:
-                raise UsageError
+        if not _target_uuid:
+            raise UsageError
 
-            _item = get_mi_queue_item(_target_uuid.lower())
+        _item = get_mi_queue_item(_target_uuid.lower())
 
-            if _item:
-                drop_mi_queue_item(_target_uuid)
-                # save_mi_queue() -- Intentionally skipped!
+        if _item:
+            drop_mi_queue_item(_target_uuid)
+            # save_mi_queue() -- Intentionally skipped!
 
-                await update.effective_message.reply_text(
-                    f"Item {_target_uuid} ({_item["title"]}) dropped.\n<b>YOU MUST /savequeue NEXT TO CONFIRM OR CHANGES WILL NOT PERSIST.</b>",
-                    parse_mode="HTML",
-                )
-            else:
-                await update.effective_message.reply_text("Error: Target not found.")
-
-    except UsageError:
-        await send_usage(update, called_as)
+            await update.effective_message.reply_text(
+                f"Item {_target_uuid} ({_item["title"]}) dropped.\n<b>YOU MUST /savequeue NEXT TO CONFIRM OR CHANGES WILL NOT PERSIST.</b>",
+                parse_mode="HTML",
+            )
+        else:
+            await update.effective_message.reply_text("Error: Target not found.")
 
 
 @register_command(
