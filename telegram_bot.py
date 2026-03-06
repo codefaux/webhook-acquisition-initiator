@@ -395,24 +395,17 @@ async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: s
     usage_text="`{self} text`",
 )
 async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    try:
-        _arg = get_single_arg_from(update, context, called_as, True)
+    _arg = get_single_arg_from(update, context, called_as, RAISE_NO_ARG)
 
-        if _arg:
-            await send_to_notify(_arg)
-    except UsageError:
-        await send_usage(update, called_as)
+    await send_to_notify(_arg)
 
 
 @register_command("echo", help_text="Echo.", usage_text="`{self} <text>`")
 async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    try:
-        _arg = get_single_arg_from(update, context, called_as, True)
+    _arg = get_single_arg_from(update, context, called_as, RAISE_NO_ARG)
 
-        if update.effective_message and _arg:
-            await update.effective_message.reply_text(_arg)
-    except UsageError:
-        await send_usage(update, called_as)
+    if update.effective_message:
+        await update.effective_message.reply_text(_arg)
 
 
 @register_command("notify", help_text="Enable notifications for new items.")
