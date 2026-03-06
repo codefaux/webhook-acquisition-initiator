@@ -227,13 +227,11 @@ async def remove_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def send_to_notify(message: str):
-    for _target in notify_chats:
-        await send_message(message, _target)
+    await asyncio.gather(*(send_message(message, _target) for _target in notify_chats))
 
 
 async def send_to_known(message: str):
-    for _target in known_chats:
-        await send_message(message, _target)
+    await asyncio.gather(*(send_message(message, _target) for _target in known_chats))
 
 
 def get_called_as(update: Update) -> str:
