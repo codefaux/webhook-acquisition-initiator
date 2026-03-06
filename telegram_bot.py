@@ -197,41 +197,33 @@ def save_notify_chats():
 
 
 async def add_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    if chat:
-        if chat.id not in known_chats:
-            known_chats.add(chat.id)
-            save_known_chats()
-            if DEBUG_PRINT:
-                _log.msg(f"Known chats: {known_chats}")
+    if update.effective_chat and update.effective_chat.id not in known_chats:
+        known_chats.add(update.effective_chat.id)
+        save_known_chats()
+        if DEBUG_PRINT:
+            _log.msg(f"Known chats: {known_chats}")
 
 
 async def add_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    if chat:
-        if chat.id not in notify_chats:
-            notify_chats.add(chat.id)
-            save_notify_chats()
-            if DEBUG_PRINT:
-                _log.msg(f"Notify chats: {notify_chats}")
+    if update.effective_chat and update.effective_chat.id not in notify_chats:
+        notify_chats.add(update.effective_chat.id)
+        save_notify_chats()
+        if DEBUG_PRINT:
+            _log.msg(f"Notify chats: {notify_chats}")
 
 
 async def remove_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    if chat:
-        if chat.id in known_chats:
-            known_chats.remove(chat.id)
-            if DEBUG_PRINT:
-                _log.msg(f"Known chats: {known_chats}")
+    if update.effective_chat and update.effective_chat.id in known_chats:
+        known_chats.remove(update.effective_chat.id)
+        if DEBUG_PRINT:
+            _log.msg(f"Known chats: {known_chats}")
 
 
 async def remove_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    if chat:
-        if chat.id in notify_chats:
-            notify_chats.remove(chat.id)
-            if DEBUG_PRINT:
-                _log.msg(f"Notify chats: {notify_chats}")
+    if update.effective_chat and update.effective_chat.id in notify_chats:
+        notify_chats.remove(update.effective_chat.id)
+        if DEBUG_PRINT:
+            _log.msg(f"Notify chats: {notify_chats}")
 
 
 async def send_to_notify(message: str):
