@@ -1,10 +1,12 @@
 import asyncio
+import inspect
 import json
 import os
 import re
 import threading
+from enum import Enum
 from functools import wraps
-from typing import Final
+from typing import Final, get_args, get_origin
 
 import fauxlogger as _log
 from decision_queue_manager import enqueue as decision_enqueue
@@ -40,8 +42,6 @@ if RUN_TELEGRAM_BOT and not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("Missing TELEGRAM_BOT_TOKEN environment variable")
 
 USAGE_TARGET_BASIC: Final[str] = "`{self}` as reply to target, or `{self} UUID`"
-RAISE_ON_ARG: Final[bool] = True
-RAISE_NO_ARG: Final[bool] = False
 
 app: Application | None = None
 loop: asyncio.AbstractEventLoop | None = None
@@ -49,18 +49,68 @@ loop: asyncio.AbstractEventLoop | None = None
 cmd_dict: dict[str, dict] = {}
 
 
+class RaiseCondition(Enum):
+    RAISE_ON_ARG = True
+    RAISE_NO_ARG = False
+    RAISE_NONE = None
+
+
+class ArgsExpect(Enum):
+    ARGS_ARE_LIST = True
+    ARGS_NOT_LIST = False
+    ARGS_NONE = None
+
+
+def scan_args_signature(func) -> ArgsExpect:
+    _signature = inspect.signature(func)
+    _params = list(_signature.parameters.values())
+
+    if len(_params) == 3:
+        return ArgsExpect.ARGS_NONE
+
+    _annotation = _params[3].annotation
+
+    if _annotation is str:
+        return ArgsExpect.ARGS_NOT_LIST
+    elif get_origin(_annotation) is list and get_args(_annotation) == (str,):
+        return ArgsExpect.ARGS_ARE_LIST
+
+    return ArgsExpect.ARGS_NONE
+
+
 def register_command(
     name: str | list[str],
     help_text: str | list[str],
     usage_text: str | list[str] | None = "`{self}`",
     detail_text: str | list[str] | None = None,
+    raise_on_args: RaiseCondition = RaiseCondition.RAISE_NONE,
 ):
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             _called_as = get_called_as(args[0])
             try:
-                return await func(*args, **kwargs, called_as=_called_as)
+                match cmd_dict[_called_as].get("args_expect"):
+                    case ArgsExpect.ARGS_ARE_LIST:
+                        _args = get_args_list_from(
+                            args[0], args[1], _called_as, raise_on_args
+                        )
+                        return await func(*args, _called_as, _args, **kwargs)
+                    case ArgsExpect.ARGS_NOT_LIST:
+                        _arg = get_single_arg_from(
+                            args[0], args[1], _called_as, raise_on_args
+                        )
+                        return await func(*args, _called_as, _arg, **kwargs)
+                    case ArgsExpect.ARGS_NONE:
+                        if raise_on_args:
+                            get_single_arg_from(
+                                args[0],
+                                args[1],
+                                _called_as,
+                                RaiseCondition.RAISE_ON_ARG,
+                            )
+                        return await func(*args, _called_as, **kwargs)
+
             except UsageError:
                 await send_usage(args[0], _called_as)
 
@@ -85,6 +135,8 @@ def register_command(
                 _entry["detail_text"] = detail_text
             elif isinstance(detail_text, list):
                 _entry["detail_text"] = detail_text[_idx]
+
+            _entry["args_expect"] = scan_args_signature(func)
 
             cmd_dict[_name] = _entry
         return wrapper
@@ -245,7 +297,7 @@ def get_single_arg_from(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     called_as: str,
-    raiseOnArg: bool | None = None,
+    raiseOnArg: RaiseCondition = RaiseCondition.RAISE_NONE,
 ) -> str:
     _arg = ""
 
@@ -258,9 +310,9 @@ def get_single_arg_from(
     ):
         _arg = update.effective_message.text.removeprefix(f"/{called_as}").strip()
 
-    if _arg and len(_arg) > 0 and raiseOnArg is RAISE_ON_ARG:
+    if _arg and len(_arg) > 0 and raiseOnArg is RaiseCondition.RAISE_ON_ARG:
         raise UsageError()
-    if (not _arg or len(_arg) == 0) and raiseOnArg is RAISE_NO_ARG:
+    if (not _arg or len(_arg) == 0) and raiseOnArg is RaiseCondition.RAISE_NO_ARG:
         raise UsageError()
 
     return _arg
@@ -270,7 +322,7 @@ def get_args_list_from(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     called_as: str,
-    raiseOnArg: bool | None = None,
+    raiseOnArg: RaiseCondition = RaiseCondition.RAISE_NONE,
 ) -> list[str]:
     _args = []
 
@@ -285,9 +337,9 @@ def get_args_list_from(
             update.effective_message.text.removeprefix(f"/{called_as}").strip().split()
         )
 
-    if _args and raiseOnArg is RAISE_ON_ARG:
+    if _args and raiseOnArg is RaiseCondition.RAISE_ON_ARG:
         raise UsageError()
-    if not _args and raiseOnArg is RAISE_NO_ARG:
+    if not _args and raiseOnArg is RaiseCondition.RAISE_NO_ARG:
         raise UsageError()
 
     return _args
@@ -353,8 +405,6 @@ async def send_usage(update: Update, called_as: str):
 
 @register_command("start", help_text="Start using the bot.")
 async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    get_single_arg_from(update, context, called_as, RAISE_ON_ARG)
-
     if update.effective_message:
         # _keyboard = [
         #     [
@@ -374,10 +424,11 @@ async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: 
         )
 
 
-@register_command("stop", help_text="Stop using the bot and disable all notifications.")
+@register_command(
+    "stop",
+    help_text="Stop using the bot and disable all notifications.",
+)
 async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    get_single_arg_from(update, context, called_as, RAISE_ON_ARG)
-
     await remove_known_chat(update, context)
     await remove_notify_chat(update, context)
 
@@ -391,25 +442,32 @@ async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: s
     "echoall",
     help_text="Echo to notification channels.",
     usage_text="`{self} text`",
+    raise_on_args=RaiseCondition.RAISE_NO_ARG,
 )
-async def _echo_all(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    _arg = get_single_arg_from(update, context, called_as, RAISE_NO_ARG)
-
+async def _echo_all(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str, _arg: str
+):
     await send_to_notify(_arg)
 
 
-@register_command("echo", help_text="Echo.", usage_text="`{self} <text>`")
-async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    _arg = get_single_arg_from(update, context, called_as, RAISE_NO_ARG)
-
+@register_command(
+    "echo",
+    help_text="Echo.",
+    usage_text="`{self} <text>`",
+    raise_on_args=RaiseCondition.RAISE_NO_ARG,
+)
+async def _echo(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str, _arg: str
+):
     if update.effective_message:
         await update.effective_message.reply_text(_arg)
 
 
-@register_command("notify", help_text="Enable notifications for new items.")
+@register_command(
+    "notify",
+    help_text="Enable notifications for new items.",
+)
 async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    get_single_arg_from(update, context, called_as, RAISE_ON_ARG)
-
     if update.effective_message:
         await update.effective_message.reply_text(
             "You have been added to notifications.\n Use /nonotify to stop."
@@ -417,10 +475,11 @@ async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as:
     await add_notify_chat(update, context)
 
 
-@register_command(["nonotify", "stopnotify"], help_text="Stop receiving notifications.")
+@register_command(
+    ["nonotify", "stopnotify"],
+    help_text="Stop receiving notifications.",
+)
 async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    get_single_arg_from(update, context, called_as, RAISE_ON_ARG)
-
     await remove_notify_chat(update, context)
     if update.effective_message:
         await update.effective_message.reply_text(
@@ -430,8 +489,6 @@ async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_a
 
 @register_command("list", help_text="List current items.")
 async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    get_single_arg_from(update, context, called_as, RAISE_ON_ARG)
-
     if update.effective_message:
         _queue: mi_dict_type = get_mi_queue()
         _idx = 0
@@ -449,10 +506,10 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: s
     help_text="Get details for target item.",
     usage_text=USAGE_TARGET_BASIC,
 )
-async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
+async def _detail(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str, _arg: str
+):
     if update.effective_message:
-        _arg = get_single_arg_from(update, context, called_as)
-
         _target_uuid = get_uuid_from(update, _arg)
 
         if not _target_uuid:
@@ -475,10 +532,11 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as:
     help_text=["Set parameters in target item.", "Add parameters to target item."],
     usage_text='`{self} PARAMETER VALUE` as reply to target OR\n`{self} UUID PARAMETER VALUE` to specify by UUID\nUse single double-quote (`"`) to clear parameter.',
     detail_text=['Use single-double-quote (`"`) to clear parameter.', ""],
+    raise_on_args=RaiseCondition.RAISE_NO_ARG,
 )
-async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    _args = get_args_list_from(update, context, called_as, RAISE_NO_ARG)
-
+async def _set(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str, _args: list[str]
+):
     if update.effective_message:
 
         if len(_args) < 2:  # AT LEAST /set [uuid] param value
@@ -584,10 +642,10 @@ async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: st
     usage_text=USAGE_TARGET_BASIC,
     detail_text="This command does NOT automatically save.",
 )
-async def _drop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
+async def _drop(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str, _arg: str
+):
     if update.effective_message:
-        _arg = get_single_arg_from(update, context, called_as)
-
         _target_uuid = get_uuid_from(update, _arg)
 
         if not _target_uuid:
@@ -612,10 +670,10 @@ async def _drop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: s
     help_text="Move item to Decision queue.",
     usage_text=USAGE_TARGET_BASIC,
 )
-async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
+async def _enqueue(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str, _arg: str
+):
     if update.effective_message:
-        _arg = get_single_arg_from(update, context, called_as)
-
         _target_uuid = get_uuid_from(update, _arg)
 
         if not _target_uuid:
@@ -651,8 +709,6 @@ async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as
 async def _queue_saveload(
     update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str
 ):
-    get_single_arg_from(update, context, called_as, RAISE_ON_ARG)
-
     if update.effective_message:
         match called_as:
             case "savequeue":
@@ -670,9 +726,9 @@ async def _queue_saveload(
 
 
 @register_command("help", help_text="Command list with short descriptions.")
-async def _help(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    _arg = get_single_arg_from(update, context, called_as)
-
+async def _help(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str, _arg: str
+):
     if update.effective_message:
         _msg = "Available commands:\n"
         for _key, _val in cmd_dict.items():
@@ -689,7 +745,7 @@ async def _help(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: s
 async def _unknown(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_message:
         await update.effective_message.reply_text("Unknown command")
-        await _help(update, context, "")
+        await _help(update, context, "", "")
 
 
 # #####################
