@@ -248,7 +248,7 @@ def save_notify_chats():
         json.dump(list(notify_chats), f, indent=2)
 
 
-async def add_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def add_known_chat(update: Update, _):
     if update.effective_chat and update.effective_chat.id not in known_chats:
         known_chats.add(update.effective_chat.id)
         save_known_chats()
@@ -256,7 +256,7 @@ async def add_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _log.msg(f"Known chats: {known_chats}")
 
 
-async def add_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def add_notify_chat(update: Update):
     if update.effective_chat and update.effective_chat.id not in notify_chats:
         notify_chats.add(update.effective_chat.id)
         save_notify_chats()
@@ -264,14 +264,14 @@ async def add_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _log.msg(f"Notify chats: {notify_chats}")
 
 
-async def remove_known_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def remove_known_chat(update: Update):
     if update.effective_chat and update.effective_chat.id in known_chats:
         known_chats.remove(update.effective_chat.id)
         if DEBUG_PRINT:
             _log.msg(f"Known chats: {known_chats}")
 
 
-async def remove_notify_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def remove_notify_chat(update: Update):
     if update.effective_chat and update.effective_chat.id in notify_chats:
         notify_chats.remove(update.effective_chat.id)
         if DEBUG_PRINT:
@@ -429,8 +429,8 @@ async def _start(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: 
     help_text="Stop using the bot and disable all notifications.",
 )
 async def _stop(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    await remove_known_chat(update, context)
-    await remove_notify_chat(update, context)
+    await remove_known_chat(update)
+    await remove_notify_chat(update)
 
     if update.effective_message:
         await update.effective_message.reply_text(
@@ -472,7 +472,7 @@ async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as:
         await update.effective_message.reply_text(
             "You have been added to notifications.\n Use /nonotify to stop."
         )
-    await add_notify_chat(update, context)
+    await add_notify_chat(update)
 
 
 @register_command(
@@ -480,7 +480,7 @@ async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as:
     help_text="Stop receiving notifications.",
 )
 async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    await remove_notify_chat(update, context)
+    await remove_notify_chat(update)
     if update.effective_message:
         await update.effective_message.reply_text(
             "You have been removed from notifications.\n Use /notify to restart."
