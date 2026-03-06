@@ -6,14 +6,17 @@ on:
     branches-ignore:
       - main
     paths:
+      - 'Dockerfile'
       - 'aging_queue_manager.py'
       - 'decision_queue_manager.py'
       - 'download_queue_manager.py'
-      - 'Dockerfile'
       - 'main.py'
+      - 'manual_intervention.py'
       - 'processor.py'
       - 'requirements.txt'
       - 'server.py'
+      - 'telegram-bot.py'
+      - 'thread-manager.py'
       - 'util.py'
       - 'ytdlp_interface.py'
       - '.github/workflows/docker-build-branches.yml'
@@ -21,6 +24,10 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build-and-push:
@@ -44,15 +51,13 @@ jobs:
         id: version
         run: echo "BUILD_TAG=build-$(date +'%Y%m%d')-${{ github.run_number }}" >> $GITHUB_ENV
 
-      - name: Extract Branch Name
-        id: extract_branch
-        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}_${{ env.BUILD_TAG }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}_${{ env.BUILD_TAG }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
