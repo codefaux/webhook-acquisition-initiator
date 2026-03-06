@@ -452,28 +452,24 @@ async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: s
     usage_text=USAGE_TARGET_BASIC,
 )
 async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    try:
-        if update.effective_message:
-            _arg = get_single_arg_from(update, context, called_as)
+    if update.effective_message:
+        _arg = get_single_arg_from(update, context, called_as)
 
-            _target_uuid = get_uuid_from(update, _arg)
+        _target_uuid = get_uuid_from(update, _arg)
 
-            if not _target_uuid:
-                raise UsageError
+        if not _target_uuid:
+            raise UsageError
 
-            _item = get_mi_queue_item(_target_uuid.lower())
+        _item = get_mi_queue_item(_target_uuid.lower())
 
-            if _item:
-                await update.effective_message.reply_text(
-                    mi_data_to_detailed_message((_target_uuid.lower(), _item)),
-                    parse_mode="HTML",
-                )
-            else:
-                await update.effective_message.reply_text("Error: Target not found.")
-            return
-
-    except UsageError:
-        await send_usage(update, called_as)
+        if _item:
+            await update.effective_message.reply_text(
+                mi_data_to_detailed_message((_target_uuid.lower(), _item)),
+                parse_mode="HTML",
+            )
+        else:
+            await update.effective_message.reply_text("Error: Target not found.")
+        return
 
 
 @register_command(
