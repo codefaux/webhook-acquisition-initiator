@@ -641,6 +641,40 @@ async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
         await send_usage(update, _cmd)
 
 
+@register_command(
+    ["savequeue", "loadqueue"],
+    help_text=[
+        "Save Manual Intervention queue.",
+        "Reload Manual Intervention queue without saving.",
+    ],
+)
+async def _queue_saveload(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
+):
+    _called_as = get_called_as(update)
+    try:
+        get_single_arg_from(update, context, _cmd, True)
+        if update.effective_message:
+            match _called_as:
+                case "savequeue":
+                    save_mi_queue()
+                    await update.effective_message.reply_text(
+                        "Manual Intervention queue saved."
+                    )
+                case "loadqueue":
+                    load_mi_queue()
+                    await update.effective_message.reply_text(
+                        "Manual Intervention queue reloaded."
+                    )
+                case _:
+                    raise UsageError
+    except UsageError:
+        if _called_as:
+            await send_usage(update, _called_as)
+        else:
+            await send_usage(update, _cmd)
+
+
 @register_command("help", help_text="Command list with short descriptions.")
 async def _help(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str):
     if update.effective_message:
