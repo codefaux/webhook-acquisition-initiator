@@ -410,9 +410,7 @@ async def _echo(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: s
 
 @register_command("notify", help_text="Enable notifications for new items.")
 async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    if get_single_arg_from(update, context, called_as):
-        await send_usage(update, called_as)
-        return
+    get_single_arg_from(update, context, called_as, RAISE_ON_ARG)
 
     if update.effective_message:
         await update.effective_message.reply_text(
@@ -423,9 +421,7 @@ async def _notify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as:
 
 @register_command(["nonotify", "stopnotify"], help_text="Stop receiving notifications.")
 async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    if get_single_arg_from(update, context, called_as):
-        await send_usage(update, called_as)
-        return
+    get_single_arg_from(update, context, called_as, RAISE_ON_ARG)
 
     await remove_notify_chat(update, context)
     if update.effective_message:
@@ -436,9 +432,7 @@ async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_a
 
 @register_command("list", help_text="List current items.")
 async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    if get_single_arg_from(update, context, called_as):
-        await send_usage(update, called_as)
-        return
+    get_single_arg_from(update, context, called_as, RAISE_ON_ARG)
 
     if update.effective_message:
         _queue: mi_dict_type = get_mi_queue()
