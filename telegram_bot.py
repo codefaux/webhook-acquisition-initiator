@@ -52,7 +52,8 @@ cmd_dict: dict[str, dict] = {}
 def register_command(
     name: str | list[str],
     help_text: str | list[str],
-    usage_text: str | None = "`{self}`",
+    usage_text: str | list[str] | None = "`{self}`",
+    detail_text: str | list[str] | None = None,
 ):
     def decorator(func):
         @wraps(func)
@@ -77,6 +78,13 @@ def register_command(
                 _entry["usage"] = usage_text.format(self=f"/{_name}")
             elif isinstance(usage_text, list):
                 _entry["usage"] = usage_text[_idx].format(self=f"/{_name}")
+
+            if not detail_text:
+                pass
+            elif isinstance(detail_text, str):
+                _entry["detail_text"] = detail_text
+            elif isinstance(detail_text, list):
+                _entry["detail_text"] = detail_text[_idx]
 
             cmd_dict[_name] = _entry
         return wrapper
@@ -476,6 +484,7 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as:
     ["set", "add"],
     help_text=["Set parameters in target item.", "Add parameters to target item."],
     usage_text='`{self} PARAMETER VALUE` as reply to target OR\n`{self} UUID PARAMETER VALUE` to specify by UUID\nUse single double-quote (`"`) to clear parameter.',
+    detail_text=['Use single-double-quote (`"`) to clear parameter.', ""],
 )
 async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
     _args = get_args_list_from(update, context, called_as, RAISE_NO_ARG)
@@ -671,11 +680,18 @@ async def _queue_saveload(
 
 @register_command("help", help_text="Command list with short descriptions.")
 async def _help(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
+    _arg = get_single_arg_from(update, context, called_as)
+
     if update.effective_message:
         _msg = "Available commands:\n"
         for _key, _val in cmd_dict.items():
-            _help = _val["help"]
-            _msg += f"/{_key} - {_help}\n"
+            if len(_arg) == 0 or _key == _arg or _arg == "*" or _arg == "all":
+                _help = _val["help"]
+                _msg += f"/{_key} - {_help}\n"
+
+                _detail = _val.get("detail_text")
+                if _detail and len(_arg) > 0:
+                    _msg += f"- {_detail}\n"
         await update.effective_message.reply_text(_msg)
 
 
