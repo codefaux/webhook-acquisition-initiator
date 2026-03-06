@@ -7,7 +7,7 @@ from typing import Union, get_args, get_origin, get_type_hints
 from schema import WAIConfigRoot
 
 CONFIG_ENV_PREFIX = "WAI_"
-CONFIG_FILE = "./conf/wai.toml"
+CONFIG_FILE = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
 
 # USE:
 # from config import Config
