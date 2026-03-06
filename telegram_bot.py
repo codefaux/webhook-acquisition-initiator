@@ -478,114 +478,105 @@ async def _detail(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as:
     usage_text='`{self} PARAMETER VALUE` as reply to target OR\n`{self} UUID PARAMETER VALUE` to specify by UUID\nUse single double-quote (`"`) to clear parameter.',
 )
 async def _set(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
-    _called_as = (get_called_as(update) or called_as).lower()
-    try:
-        if update.effective_message:
-            _args = get_args_list_from(update, context, called_as)
-            _arg_idx = 0
+    _args = get_args_list_from(update, context, called_as, RAISE_NO_ARG)
 
-            if not _args or len(_args) < 2:  # AT LEAST /set [uuid] param value
-                raise UsageError
+    if update.effective_message:
 
-            # Check args for target, parameter, value
-            _target_uuid = get_uuid_from(update, _args[0] if _args else None)
+        if len(_args) < 2:  # AT LEAST /set [uuid] param value
+            raise UsageError
 
-            if not _target_uuid:
-                raise UsageError
+        # Check args for target, parameter, value
+        _arg_idx = 0
+        _target_uuid = get_uuid_from(update, _args[_arg_idx] if _args else None)
 
-            _item = get_mi_queue_item(_target_uuid.lower())
+        if not _target_uuid:
+            raise UsageError
 
-            if not _item:
-                await update.effective_message.reply_text("Error: Target not found.")
-                raise UsageError
+        _item = get_mi_queue_item(_target_uuid.lower())
 
-            if not update.effective_message.reply_to_message:
-                _arg_idx = 1
+        if not _item:
+            await update.effective_message.reply_text("Error: Target not found.")
+            raise UsageError
 
-            _parameter = _args[_arg_idx]
-            _subparameter = None
+        if not update.effective_message.reply_to_message:
+            _arg_idx += 1
 
-            if _called_as != "add" and _parameter not in _item.keys():
+        _parameter = _args[_arg_idx]
+        _subparameter = None
+
+        if called_as != "add" and _parameter not in _item.keys():
+            await update.effective_message.reply_text(
+                "Error: Parameter not present in target. Use `/add` to inject parameters.",
+                parse_mode="Markdown",
+            )
+            raise UsageError
+
+        _subcheck = _item[_parameter]
+        if isinstance(_subcheck, dict) and _args[_arg_idx + 1] != '"':
+            _arg_idx += 1
+            _subparameter = _args[_arg_idx]
+
+            if called_as != "add" and _subparameter not in _subcheck.keys():
                 await update.effective_message.reply_text(
-                    "Error: Parameter not present in target. Use `/add` to inject parameters.",
+                    "Error: Parameter/Subparameter not present in target. Use `/add` to inject parameters.",
                     parse_mode="Markdown",
                 )
                 raise UsageError
 
-            _subcheck = _item[_parameter]
-            if isinstance(_subcheck, dict) and _args[_arg_idx + 1] != '"':
-                _arg_idx += 1
-                _subparameter = _args[_arg_idx]
+        _arg_idx += 1
+        _value = " ".join(_args[_arg_idx:])
 
-                if _called_as != "add" and _subparameter not in _subcheck.keys():
-                    await update.effective_message.reply_text(
-                        "Error: Parameter/Subparameter not present in target. Use `/add` to inject parameters.",
-                        parse_mode="Markdown",
-                    )
-                    raise UsageError
-
-            _arg_idx += 1
-            _value = " ".join(_args[_arg_idx:])
-
-            if not _value:
-                await update.effective_message.reply_text(
-                    'Error: Value must be provided. Use a single double-quote (`"`) to clear parameter.'
-                )
-                raise UsageError
-
-            if _subparameter is None:
-                if _value == '"':
-                    _old = _item[_parameter]
-                    _item.pop(_parameter)
-                    await update.effective_message.reply_text(
-                        f"Removed '{_parameter}': was '{_old}'"
-                    )
-                else:
-                    _old = _item[_parameter]
-                    _item[_parameter] = _value
-                    await update.effective_message.reply_text(
-                        f"Updated '{_parameter}' to '{_value}' from '{_old}'"
-                    )
-            else:
-                if _value == '"':
-                    _old = _item[
-                        _parameter
-                    ].get(  # pyright: ignore[reportAttributeAccessIssue]
-                        _subparameter
-                    )
-                    _item[
-                        _parameter
-                    ].pop(  # pyright: ignore[reportAttributeAccessIssue]
-                        _subparameter
-                    )
-                    await update.effective_message.reply_text(
-                        f"Removed '{_parameter}[{_subparameter}]': was '{_old}'"
-                    )
-                else:
-                    _old = _item[
-                        _parameter
-                    ].get(  # pyright: ignore[reportAttributeAccessIssue]
-                        _subparameter
-                    )
-                    _item[_parameter][  # pyright: ignore[reportIndexIssue]
-                        _subparameter
-                    ] = _value
-                    await update.effective_message.reply_text(
-                        f"Updated '{_parameter}[{_subparameter}]' to '{_value}' from '{_old}'"
-                    )
-
-            set_mi_queue_item(_target_uuid.lower(), _item)
-
+        if not _value:
             await update.effective_message.reply_text(
-                mi_data_to_detailed_message((_target_uuid.lower(), _item)),
-                parse_mode="HTML",
+                'Error: Value must be provided. Use a single double-quote (`"`) to clear parameter.'
             )
+            raise UsageError
 
-    except UsageError:
-        if _called_as:
-            await send_usage(update, _called_as)
+        if _subparameter is None:
+            if _value == '"':
+                _old = _item[_parameter]
+                _item.pop(_parameter)
+                await update.effective_message.reply_text(
+                    f"Removed '{_parameter}': was '{_old}'"
+                )
+            else:
+                _old = _item[_parameter]
+                _item[_parameter] = _value
+                await update.effective_message.reply_text(
+                    f"Updated '{_parameter}' to '{_value}' from '{_old}'"
+                )
         else:
-            await send_usage(update, called_as)
+            if _value == '"':
+                _old = _item[
+                    _parameter
+                ].get(  # pyright: ignore[reportAttributeAccessIssue]
+                    _subparameter
+                )
+                _item[_parameter].pop(  # pyright: ignore[reportAttributeAccessIssue]
+                    _subparameter
+                )
+                await update.effective_message.reply_text(
+                    f"Removed '{_parameter}[{_subparameter}]': was '{_old}'"
+                )
+            else:
+                _old = _item[
+                    _parameter
+                ].get(  # pyright: ignore[reportAttributeAccessIssue]
+                    _subparameter
+                )
+                _item[_parameter][  # pyright: ignore[reportIndexIssue]
+                    _subparameter
+                ] = _value
+                await update.effective_message.reply_text(
+                    f"Updated '{_parameter}[{_subparameter}]' to '{_value}' from '{_old}'"
+                )
+
+        set_mi_queue_item(_target_uuid.lower(), _item)
+
+        await update.effective_message.reply_text(
+            mi_data_to_detailed_message((_target_uuid.lower(), _item)),
+            parse_mode="HTML",
+        )
 
 
 @register_command(
