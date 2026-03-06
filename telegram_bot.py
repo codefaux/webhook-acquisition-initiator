@@ -635,7 +635,6 @@ async def _enqueue(update: Update, context: ContextTypes.DEFAULT_TYPE, _cmd: str
                 )
             else:
                 await update.effective_message.reply_text("Error: Target not found.")
-            return
 
     except UsageError:
         await send_usage(update, _cmd)
