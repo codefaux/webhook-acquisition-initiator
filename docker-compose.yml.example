@@ -10,16 +10,7 @@ services:
     environment:
       SONARR_URL: http://sonarr:8989/
       SONARR_API: UNSET  # Replace with your actual API key
-      SONARR_IN_PATH: /mnt/sonarr
-      DATA_DIR: /data
-      WAI_OUT_PATH: /output
-      HONOR_UNMON_EPS: "0"
-      HONOR_UNMON_SERIES: "1"
-      OVERWRITE_EPS: "0"
-      QUEUE_INTERVAL: "15"
-      FLIP_FLOP_QUEUE: "1"
-      AGING_RIPENESS_PER_DAY: "4"
-      AGING_QUEUE_INTERVAL: "5"
+      WAI_CONFIG_FILE: /conf/wai.toml
     volumes:
       - ./data:/data
       - ./output:/output
