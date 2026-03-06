@@ -154,13 +154,13 @@ def mi_data_to_short_message(mi_data: mi_tuple_type, header: str | None = None) 
 
 def load_known_chats():
     global known_chats
-    known_chats.clear()
 
     if os.path.exists(KNOWN_CHATS_FILE):
         with open(KNOWN_CHATS_FILE, "r") as f:
             try:
                 data = json.load(f)
                 if isinstance(data, list):
+                    known_chats.clear()
                     known_chats.update(data)
             except json.JSONDecodeError:
                 _log.msg(
@@ -170,13 +170,13 @@ def load_known_chats():
 
 def load_notify_chats():
     global notify_chats
-    notify_chats.clear()
 
     if os.path.exists(NOTIFY_CHATS_FILE):
         with open(NOTIFY_CHATS_FILE, "r") as f:
             try:
                 data = json.load(f)
                 if isinstance(data, list):
+                    notify_chats.clear()
                     notify_chats.update(data)
             except json.JSONDecodeError:
                 _log.msg(
