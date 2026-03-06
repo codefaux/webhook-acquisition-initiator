@@ -9,6 +9,7 @@ from functools import wraps
 from typing import Final, get_args, get_origin
 
 import fauxlogger as _log
+from config import Config
 from decision_queue_manager import enqueue as decision_enqueue
 from manual_intervention_manager import add_notify_listener as add_mi_notify
 from manual_intervention_manager import (drop_mi_queue_item, get_mi_queue,
@@ -22,24 +23,17 @@ from telegram import Update
 from telegram.ext import (Application, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
-DEBUG_PRINT: Final[bool] = int(os.getenv("DEBUG_PRINT", 0)) != 0
-DEBUG_BREAK: Final[bool] = int(os.getenv("DEBUG_BREAK", 0)) != 0
+config = Config()
 
-DATA_DIR: str = os.getenv("DATA_DIR") or "./data"
-
-KNOWN_CHATS_FILE: Final[str] = os.path.join(DATA_DIR, "known_chats.json")
+KNOWN_CHATS_FILE: Final[str] = os.path.join(
+    config.wai.data_dir, config.telegram.known_chats_file
+)
 known_chats = set()
 
-NOTIFY_CHATS_FILE: Final[str] = os.path.join(DATA_DIR, "notify_chats.json")
+NOTIFY_CHATS_FILE: Final[str] = os.path.join(
+    config.wai.data_dir, config.telegram.notify_chats_file
+)
 notify_chats = set()
-
-RUN_TELEGRAM_BOT = int(os.getenv("RUN_TELEGRAM_BOT", 1)) == 1
-
-TELEGRAM_BOT_TOKEN: Final = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID: Final = os.getenv("TELEGRAM_CHAT_ID")
-
-if RUN_TELEGRAM_BOT and not TELEGRAM_BOT_TOKEN:
-    raise RuntimeError("Missing TELEGRAM_BOT_TOKEN environment variable")
 
 USAGE_TARGET_BASIC: Final[str] = "`{self}` as reply to target, or `{self} UUID`"
 
@@ -252,7 +246,7 @@ async def add_known_chat(update: Update, _):
     if update.effective_chat and update.effective_chat.id not in known_chats:
         known_chats.add(update.effective_chat.id)
         save_known_chats()
-        if DEBUG_PRINT:
+        if config.debug.debug_print:
             _log.msg(f"Known chats: {known_chats}")
 
 
@@ -260,21 +254,21 @@ async def add_notify_chat(update: Update):
     if update.effective_chat and update.effective_chat.id not in notify_chats:
         notify_chats.add(update.effective_chat.id)
         save_notify_chats()
-        if DEBUG_PRINT:
+        if config.debug.debug_print:
             _log.msg(f"Notify chats: {notify_chats}")
 
 
 async def remove_known_chat(update: Update):
     if update.effective_chat and update.effective_chat.id in known_chats:
         known_chats.remove(update.effective_chat.id)
-        if DEBUG_PRINT:
+        if config.debug.debug_print:
             _log.msg(f"Known chats: {known_chats}")
 
 
 async def remove_notify_chat(update: Update):
     if update.effective_chat and update.effective_chat.id in notify_chats:
         notify_chats.remove(update.effective_chat.id)
-        if DEBUG_PRINT:
+        if config.debug.debug_print:
             _log.msg(f"Notify chats: {notify_chats}")
 
 
@@ -376,7 +370,7 @@ async def send_message(text: str, chat_id: str | None):
     if not app:
         raise RuntimeError("Bot not running yet")
 
-    target_chat_id = chat_id or TELEGRAM_CHAT_ID
+    target_chat_id = chat_id or config.telegram.chat_id
     if not target_chat_id:
         raise RuntimeError("No chat_id provided and TELEGRAM_DEFAULT_CHAT_ID not set")
 
@@ -769,10 +763,10 @@ def mi_notify_callback(mi_data: mi_tuple_type) -> None:
 async def bot_start(stop_event: threading.Event):
     global app, loop
 
-    if not TELEGRAM_BOT_TOKEN:
-        raise RuntimeError("Missing TELEGRAM_BOT_TOKEN environment variable")
+    if not config.telegram.token:
+        raise RuntimeError("Missing config.telegram.token config")
 
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app = Application.builder().token(config.telegram.token).build()
     loop = asyncio.get_running_loop()
 
     load_known_chats()

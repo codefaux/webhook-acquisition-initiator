@@ -5,7 +5,9 @@ import json
 import os
 import re
 
-DATA_DIR = os.getenv("DATA_DIR") or "./data"
+from config import Config
+
+config = Config()
 
 
 def process_message(raw_text: str) -> dict:
@@ -32,7 +34,7 @@ def get_json_items(from_file: str) -> list[dict]:
     if not from_file.endswith(".json"):
         from_file += ".json"
 
-    file_path = os.path.join(DATA_DIR, from_file.lower())
+    file_path = os.path.join(config.wai.data_dir, from_file.lower())
 
     if not os.path.isfile(file_path):
         return [{"error": "File not found"}]
@@ -76,7 +78,7 @@ def add_json_item(to_file: str, item: dict) -> dict:
     if to_file == "queue.json":
         return {"error": "Cannot operate directly on queue"}
 
-    file_path = os.path.join(DATA_DIR, to_file)
+    file_path = os.path.join(config.wai.data_dir, to_file)
 
     if os.path.exists(file_path):
         try:
@@ -105,7 +107,7 @@ def remove_json_item(from_file: str, item: dict) -> dict:
     if from_file == "queue.json":
         return {"error": "Cannot operate directly on queue"}
 
-    file_path = os.path.join(DATA_DIR, from_file)
+    file_path = os.path.join(config.wai.data_dir, from_file)
     if not os.path.exists(file_path):
         return {"error": "File not found"}
 

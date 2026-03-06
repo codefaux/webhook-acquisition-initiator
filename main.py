@@ -8,61 +8,15 @@ import fauxlogger as _log
 import thread_manager
 import uvicorn
 from cfsonarr import validate_sonarr_config
+from config import Config
 from server import fastapi
 
-# Load configuration from environment variables
-DATA_DIR = os.getenv("DATA_DIR") or "./data"
-CONF_DIR = os.getenv("CONF_DIR") or "./conf"
-SONARR_URL = os.getenv("SONARR_URL")
-API_KEY = os.getenv("SONARR_API")
-SONARR_IN_PATH = os.getenv("SONARR_IN_PATH")
-DEBUG_PRINT = int(os.getenv("DEBUG_PRINT", 0)) == 1
-
-if not SONARR_URL or not API_KEY:
-    raise RuntimeError(
-        "Both SONARR_URL and SONARR_API environment variables must be set."
-    )
-
-if not SONARR_IN_PATH:
-    raise RuntimeError("SONARR_IN_PATH must be set.")
+config = Config()
 
 
 if __name__ == "__main__":
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(CONF_DIR, exist_ok=True)
-
-    if DEBUG_PRINT:
-        env_vars = [
-            "SONARR_API",
-            "RADARR_API",
-            "SONARR_URL",
-            "RADARR_URL",
-            "SONARR_IN_PATH",
-            "WAI_OUT_PATH",
-            "WAI_OUT_TEMP",
-            "DATA_DIR",
-            "CONF_DIR",
-            "FLIP_FLOP_QUEUE",
-            "AGING_RIPENESS_PER_DAY",
-            "DOWNLOAD_QUEUE_INTERVAL",
-            "AGING_QUEUE_INTERVAL",
-            "DECISION_QUEUE_INTERVAL",
-            "OVERWRITE_EPS",
-            "HONOR_UNMON_EPS",
-            "HONOR_UNMON_SERIES",
-            "RUN_AGING_QUEUE",
-            "RUN_DOWNLOAD_QUEUE",
-            "RUN_DECISION_QUEUE",
-            "DEBUG_PRINT",
-            "DEBUG_BREAK",
-            "DEBUG_DECISIONS",
-        ]
-        vardump: list[str] = ["Environment vars:"]
-        vardump.extend(
-            f"- {_log._BLUE}{varname}{_log._RESET}: {_log._GREEN}{os.getenv(varname)}{_log._RESET}"
-            for varname in env_vars
-        )
-        _log.msg(vardump)
+    os.makedirs(config.wai.conf_dir, exist_ok=True)
+    os.makedirs(config.wai.data_dir, exist_ok=True)
 
     retries = 0
     while retries < 5:

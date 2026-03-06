@@ -5,10 +5,10 @@ from pathlib import Path
 
 import fauxlogger as _log
 import pycountry
+from config import Config
 from dateutil import parser as dateparser
 
-DATA_DIR = os.getenv("DATA_DIR") or "./data"
-AGING_RIPENESS_PER_DAY = int(os.getenv("AGING_RIPENESS_PER_DAY", 4))
+config = Config()
 
 
 def parse_date(date_input: str | date) -> datetime | None:
@@ -71,7 +71,7 @@ def get_next_aging_time(aging_item: dict) -> int:
 def get_new_ripeness(item: dict) -> int:
     return (
         date_distance_days(item["datecode"], date.today().strftime("%Y-%m-%d"))
-        * AGING_RIPENESS_PER_DAY
+        * config.aging_queue.ripeness_per_day
     )
 
 

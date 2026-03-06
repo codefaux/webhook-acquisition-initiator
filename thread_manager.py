@@ -1,12 +1,14 @@
-import os
 import threading
 
 import fauxlogger as _log
 from aging_queue_manager import process_queue as process_aging_queue
+from config import Config
 from decision_queue_manager import process_queue as process_decision_queue
 from download_queue_manager import process_queue as process_download_queue
 from manual_intervention_manager import mi_thread_worker as run_mi_thread
 from telegram_bot import telegram_bot_thread as run_telegram_thread
+
+config = Config()
 
 stop_event = threading.Event()
 decision_queue_thread = threading.Thread()
@@ -14,12 +16,6 @@ download_queue_thread = threading.Thread()
 aging_queue_thread = threading.Thread()
 mi_thread = threading.Thread()
 telegram_thread = threading.Thread()
-
-RUN_DECISION_QUEUE = int(os.getenv("RUN_DECISION_QUEUE", 1)) == 1
-RUN_AGING_QUEUE = int(os.getenv("RUN_AGING_QUEUE", 1)) == 1
-RUN_DOWNLOAD_QUEUE = int(os.getenv("RUN_DOWNLOAD_QUEUE", 1)) == 1
-RUN_MI_THREAD = int(os.getenv("RUN_MI_THREAD", 1)) == 1
-RUN_TELEGRAM_BOT = RUN_MI_THREAD and (int(os.getenv("RUN_TELEGRAM_BOT", 1)) == 1)
 
 
 def handle_exit_signal(signum, frame):
@@ -145,16 +141,16 @@ def stop_mi_thread():
 
 
 def startup():
-    if RUN_DECISION_QUEUE:
+    if config.decision_queue.run:
         start_decision_queue_manager()
-    if RUN_AGING_QUEUE:
+    if config.aging_queue.run:
         start_aging_queue_manager()
-    if RUN_DOWNLOAD_QUEUE:
+    if config.download_queue.run:
         start_download_queue_manager()
-    if RUN_MI_THREAD:
+    if config.manual_intervention.run:
         start_mi_thread()
 
-        if RUN_TELEGRAM_BOT:
+        if config.telegram.run:
             start_telegram_bot()
 
     _log.msg("Thread init complete")

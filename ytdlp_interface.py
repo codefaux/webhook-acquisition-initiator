@@ -4,15 +4,18 @@ import time
 import fauxlogger as _log
 import yt_dlp
 import yt_dlp.options
+from config import Config
 from yt_dlp.utils import DownloadError
 
-CONF_DIR = os.getenv("CONF_DIR") or "./conf"
-netrc_file = os.path.join(CONF_DIR, "netrc")
-ytdlpconf_file = os.path.join(CONF_DIR, "yt-dlp.conf")
-cookies_file = os.path.join(CONF_DIR, "cookies.txt")
-using_netrc = os.path.exists(netrc_file)
-using_ytdlpconf = os.path.exists(ytdlpconf_file)
-using_cookies = os.path.exists(cookies_file)
+config = Config()
+
+NETRC_FILE = os.path.join(config.wai.conf_dir, config.ytdlp.netrc_file)
+YTDLPCONF_FILE = os.path.join(config.wai.conf_dir, config.ytdlp.conf_file)
+COOOKIES_FILE = os.path.join(config.wai.conf_dir, config.ytdlp.cookies_file)
+
+using_netrc = os.path.exists(NETRC_FILE)
+using_ytdlpconf = os.path.exists(YTDLPCONF_FILE)
+using_cookies = os.path.exists(COOOKIES_FILE)
 
 last_print_time = 0
 last_print_percent = 0
@@ -130,12 +133,12 @@ def download_video(video_url: str, target_folder: str) -> str | None:
     }
 
     if using_ytdlpconf:
-        ydl_opts.update(cli_to_api(["--config-locations", f"{CONF_DIR}"]))
+        ydl_opts.update(cli_to_api(["--config-locations", f"{config.wai.conf_dir}"]))
     if using_netrc:
         ydl_opts["usenetrc"] = True
-        ydl_opts["netrc_location"] = netrc_file
+        ydl_opts["netrc_location"] = NETRC_FILE
     if using_cookies:
-        ydl_opts["cookiefile"] = cookies_file
+        ydl_opts["cookiefile"] = COOOKIES_FILE
 
     ydl_opts["outtmpl"] = os.path.join(target_folder, "%(title)s.%(ext)s")
 

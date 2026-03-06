@@ -7,13 +7,13 @@ from typing import Callable, Final
 from uuid import uuid4
 
 import fauxlogger as _log
+from config import Config
 
-DATA_DIR: str = os.getenv("DATA_DIR") or "./data"
+config = Config()
 
-DEBUG_PRINT: Final[bool] = int(os.getenv("DEBUG_PRINT", 0)) != 0
-DEBUG_BREAK: Final[bool] = int(os.getenv("DEBUG_BREAK", 0)) != 0
-
-MI_QUEUE_FILE: Final[str] = os.path.join(DATA_DIR, "manual_intervention.json")
+MI_QUEUE_FILE: Final[str] = os.path.join(
+    config.wai.data_dir, config.manual_intervention.file
+)
 
 mi_queue_lock: Final = threading.Lock()
 mi_queue_notify_event: Final = threading.Event()
