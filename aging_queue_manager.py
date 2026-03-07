@@ -185,7 +185,10 @@ def process_queue(stop_event: threading.Event):
                     _log.msg("Queue present but no eligible items.")
 
         if aging_item:
-            _log.msg(f"Processing aging item\n{aging_item}")
+
+            _log.msg(
+                f"Processing aging item\nCreator: {aging_item.get("creator")}\nTitle: {aging_item.get("title")}"
+            )
 
             wait_before_loop, aging_item = process_aging_item(aging_item)
 
