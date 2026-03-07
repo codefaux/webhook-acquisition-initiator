@@ -116,6 +116,14 @@ def process_item(item: dict | None) -> tuple[bool, dict | None]:
     if not item:
         return False, None
 
+    _ep_res = item.get("episode_result", {})
+    _log.msg(
+        f"Downloading queue item from {item.get("url")}\n"
+        f"Creator: {item.get("creator")}\n"
+        f"Title: {item.get("title")}\n"
+        f"Show: {_ep_res.get("matched_show")} :: S{_ep_res.get("season"):02d}E{_ep_res.get("episode"):02d} - {_ep_res.get("episode_title")}"
+    )
+
     item = download_item(item)
 
     if not item:
