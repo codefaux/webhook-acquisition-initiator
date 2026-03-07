@@ -17,15 +17,6 @@ using_netrc = os.path.exists(NETRC_FILE)
 using_ytdlpconf = os.path.exists(YTDLPCONF_FILE)
 using_cookies = os.path.exists(COOOKIES_FILE)
 
-if using_netrc:
-    _log.msg(f"Using netrc: {NETRC_FILE}")
-
-if using_ytdlpconf:
-    _log.msg(f"Using ytdlp.conf: {YTDLPCONF_FILE}")
-
-if using_cookies:
-    _log.msg(f"Using cookies: {COOOKIES_FILE}")
-
 last_print_time = 0
 last_print_percent = 0
 
