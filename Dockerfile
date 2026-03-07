@@ -16,7 +16,7 @@ VOLUME ["/conf"]
 ENV DATA_DIR=/data
 ENV SONARR_URL=http://sonarr:8989/
 ENV SONARR_API=UNSET
-ENV WAI_CONF_FILE=/conf/wai.toml
+ENV WAI_CONFIG_FILE=/conf/wai.toml
 
 # Default command
 CMD ["python", "main.py"]
