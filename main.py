@@ -11,12 +11,16 @@ from cfsonarr import validate_sonarr_config
 from config import Config
 from server import fastapi
 
+CONFIG_FILE = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
+
 config = Config()
 
 
 if __name__ == "__main__":
     os.makedirs(config.wai.conf_dir, exist_ok=True)
     os.makedirs(config.wai.data_dir, exist_ok=True)
+
+    _log.msg(f"Config: {CONFIG_FILE}")
 
     retries = 0
     while retries < 5:
