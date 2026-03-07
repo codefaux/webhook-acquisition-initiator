@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     retries = 0
     while retries < 5:
-        if validate_sonarr_config():
+        if validate_sonarr_config(config.sonarr.url, config.sonarr.api):
             retries = 0
             break
         else:
