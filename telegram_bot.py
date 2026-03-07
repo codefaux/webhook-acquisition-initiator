@@ -637,7 +637,7 @@ async def _set(
     "drop",
     help_text="Drop the item from the Manual Intervention queue.",
     usage_text=USAGE_TARGET_BASIC,
-    detail_text="This command does NOT automatically save.",
+    detail_text="This command automatically saves.",
 )
 async def _drop(
     update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str, _arg: str
@@ -652,10 +652,10 @@ async def _drop(
 
         if _item:
             drop_mi_queue_item(_target_uuid)
-            # save_mi_queue() -- Intentionally skipped!
+            save_mi_queue()
 
             await update.effective_message.reply_text(
-                f"Item {_target_uuid} ({_item["title"]}) dropped.\n<b>YOU MUST <code>/savequeue</code> NEXT TO CONFIRM OR CHANGES WILL NOT PERSIST.</b>",
+                f"Item {_target_uuid} ({_item["title"]}) dropped.\n",
                 parse_mode="HTML",
             )
         else:
