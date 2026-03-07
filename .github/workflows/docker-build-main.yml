@@ -7,14 +7,18 @@ on:
       - main
     paths:
       - 'Dockerfile'
-      - 'main.py'
-      - 'processor.py'
+      - 'aging_queue_manager.py'
+      - 'config.py'
       - 'decision_queue_manager.py'
       - 'download_queue_manager.py'
-      - 'aging_queue_manager.py'
-      - 'thread_manager.py'
+      - 'main.py'
+      - 'manual_intervention.py'
+      - 'processor.py'
       - 'requirements.txt'
+      - 'schema.py'
       - 'server.py'
+      - 'telegram-bot.py'
+      - 'thread-manager.py'
       - 'util.py'
       - 'ytdlp_interface.py'
       - '.github/workflows/docker-build-main.yml'
@@ -22,6 +26,10 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build-and-push:
