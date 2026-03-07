@@ -485,6 +485,9 @@ async def _nonotify(update: Update, context: ContextTypes.DEFAULT_TYPE, called_a
 async def _list(update: Update, context: ContextTypes.DEFAULT_TYPE, called_as: str):
     if update.effective_message:
         _queue: mi_dict_type = get_mi_queue()
+        await update.effective_message.reply_text(
+            f"Listing queue: {len(_queue)} items."
+        )
         _idx = 0
         for _key, _item in _queue.items():
             _idx += 1
