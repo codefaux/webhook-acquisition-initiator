@@ -11,9 +11,9 @@ CONFIG_FILE = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
 
 # USE:
 # from config import Config
-# from schema import RootConfig
 
-# config = Config("config.toml", schema=RootConfig)
+# config = Config()
+# config = Config("/path/to/config.toml")
 
 
 class ConfigNode:
