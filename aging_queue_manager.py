@@ -187,7 +187,9 @@ def process_queue(stop_event: threading.Event):
         if aging_item:
 
             _log.msg(
-                f"Processing aging item\nCreator: {aging_item.get("creator")}\nTitle: {aging_item.get("title")}"
+                f"Processing aging item\n"
+                f"{_log._BLUE}Creator:{_log._RESET} {aging_item.get("creator")}\n"
+                f"{_log._BLUE}Title:{_log._RESET} {aging_item.get("title")}"
             )
 
             wait_before_loop, aging_item = process_aging_item(aging_item)
