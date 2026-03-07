@@ -378,7 +378,7 @@ def import_item(item: dict) -> dict | None:
     _season = item["episode_result"].get("season")
     _episode = item["episode_result"].get("episode")
     _filename = item["file_name"]
-    _folder = config.arr.sonarr_in_path
+    _folder = config.sonarr.in_path
 
     import_result = import_downloaded_episode(
         _id, _season, _episode, _filename, _folder

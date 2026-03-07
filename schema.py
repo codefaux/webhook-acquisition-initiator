@@ -4,11 +4,9 @@ from typing import Optional
 
 @dataclass
 class ServarrConfig:
-    sonarr_url: str
-    sonarr_api: str
-    sonarr_in_path: str
-    radarr_url: Optional[str] = None
-    radarr_api: Optional[str] = None
+    url: str
+    api: str
+    in_path: str
 
 
 @dataclass
@@ -89,12 +87,13 @@ class ExampleConfig:
 @dataclass
 class WAIConfigRoot:
     wai: WAIConfig
-    arr: ServarrConfig
+    sonarr: ServarrConfig
     aging_queue: AgingQueueConfig
     download_queue: DownloadQueueConfig
     decision_queue: DecisionQueueConfig
     manual_intervention: ManualInterventionThreadConfig
     telegram: TelegramConfig
     ytdlp: YtdlpConfig
-    debug: DebugConfig
+    debug: Optional[DebugConfig] = None
+    radarr: Optional[ServarrConfig] = None
     example: Optional[ExampleConfig] = None
