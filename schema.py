@@ -4,9 +4,9 @@ from typing import Optional
 
 @dataclass
 class ServarrConfig:
-    url: str
-    api: str
     in_path: str
+    api: str
+    url: str = "http://localhost:8989"
 
 
 @dataclass
@@ -27,16 +27,19 @@ class BaseQueueConfig:
 
 @dataclass
 class AgingQueueConfig(BaseQueueConfig):
+    file: str = "aging_queue.json"
     ripeness_per_day: int = 4
 
 
 @dataclass
 class DownloadQueueConfig(BaseQueueConfig):
+    file: str = "download_queue.json"
     interval: int = 30
 
 
 @dataclass
 class DecisionQueueConfig(BaseQueueConfig):
+    file: str = "decision_queue.json"
     matcher_threads: int = 8
     cache_ttl: int = 5
     overwrite_eps: bool = False
@@ -46,7 +49,7 @@ class DecisionQueueConfig(BaseQueueConfig):
 
 @dataclass
 class ManualInterventionThreadConfig:
-    file: str
+    file: str = "manual_intervention.json"
     run: bool = True
 
 
@@ -77,14 +80,6 @@ class YtdlpConfig:
 
 
 @dataclass
-class ExampleConfig:
-    user: str
-    host: str = "localhost"
-    port: int = 5432
-    proxy: Optional[str] = None
-
-
-@dataclass
 class WAIConfigRoot:
     wai: WAIConfig
     sonarr: ServarrConfig
@@ -96,4 +91,3 @@ class WAIConfigRoot:
     ytdlp: YtdlpConfig
     debug: Optional[DebugConfig] = None
     radarr: Optional[ServarrConfig] = None
-    example: Optional[ExampleConfig] = None
