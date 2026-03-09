@@ -1,6 +1,7 @@
+import dataclasses
 import os
+import sys
 import tomllib
-from dataclasses import fields
 from pathlib import Path
 from typing import Union, get_args, get_origin, get_type_hints
 
@@ -51,6 +52,35 @@ class Config:
         self.reload()
 
     def reload(self):
+        def _write_toml(path: Path | None, data: dict, parent=""):
+            lines = []
+
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    section = f"{parent}.{key}" if parent else key
+                    lines.append(f"\n[{section}]")
+                    lines.extend(_write_toml(None, value, section))
+                else:
+                    if isinstance(value, str):
+                        value = f'"{value}"'
+                    elif isinstance(value, bool):
+                        value = str(value).lower()
+                    lines.append(f"{key} = {value}")
+
+            if path:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with open(path, "w") as f:
+                    f.write("\n".join(lines))
+
+            return lines
+
+        def _resolve_optional(t):
+            if get_origin(t) is Union:
+                args = [a for a in get_args(t) if a is not type(None)]
+                if len(args) == 1:
+                    return args[0]
+            return t
+
         def _apply_env_overrides():
             def _parse_env(v):
                 if v.lower() in ("true", "false"):
@@ -78,17 +108,10 @@ class Config:
                 ref[keypath[-1]] = _parse_env(value)
 
         def _apply_schema():
-            def _resolve_optional(t):
-                if get_origin(t) is Union:
-                    args = [a for a in get_args(t) if a is not type(None)]
-                    if len(args) == 1:
-                        return args[0]
-                return t
-
             hints = get_type_hints(self.schema)
             kwargs = {}
 
-            for field in fields(self.schema):
+            for field in dataclasses.fields(self.schema):
                 field_type = _resolve_optional(hints[field.name])
                 value = data.get(field.name)
 
@@ -103,8 +126,46 @@ class Config:
 
             return self.schema(**kwargs)
 
-        with open(self.path, "rb") as f:
-            data = tomllib.load(f)
+        def _dataclass_to_dict(schema):
+            """Create dict with default values from dataclass schema."""
+            result = {}
+
+            for f in dataclasses.fields(schema):
+                t = _resolve_optional(f.type)
+
+                if dataclasses.is_dataclass(t):
+                    result[f.name] = _dataclass_to_dict(t)
+                    continue
+
+                if f.default is not dataclasses.MISSING:
+                    result[f.name] = f.default
+                else:
+                    # required field without default
+                    result[f.name] = "# REQUIRED FIELD"
+
+            return result
+
+        try:
+            print(f"\nLooking at config file: {self.path}\n")
+            with open(self.path, "rb") as f:
+                data = tomllib.load(f)
+        except FileNotFoundError:
+            print("Config not found.")
+
+            _def_file = f"{self.path}.defaults"
+            if Path(_def_file).exists():
+                print(
+                    f"\n{_def_file} exists, use it to create a corrected config file.\n"
+                )
+            else:
+                print(
+                    "- Generating defaults file:\n"
+                    f" {_def_file}\n"
+                    "Use it to create a corrected config file.\n"
+                )
+                default_data = _dataclass_to_dict(self.schema)
+                _write_toml(Path(_def_file), default_data)
+            sys.exit(0)
 
         _apply_env_overrides()
 
