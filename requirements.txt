@@ -11,9 +11,9 @@ certifi==2026.1.4
     #   httpcore
     #   httpx
     #   requests
-cfsonarr @ git+https://github.com/codefaux/python-cfsonarr@83010d4d72ead0b62e4e04746c596930fd369746
+cfsonarr @ git+https://github.com/codefaux/python-cfsonarr@c59661134524518921e3a19075a0232b184cc8fc
     # via -r requirements.in
-cfsonarrmatcher @ git+https://github.com/codefaux/python-cfsonarr-matcher@cc1f166a5fdc4a57d3165e37e0d486651590fc03
+cfsonarrmatcher @ git+https://github.com/codefaux/python-cfsonarr-matcher@1eee2c2dadd8fc72c4aa6ce4a85a9fff4a3125fc
     # via -r requirements.in
 charset-normalizer==3.4.4
     # via requests
@@ -25,15 +25,10 @@ fastapi==0.115.12
     # via -r requirements.in
 fauxcache @ git+https://github.com/codefaux/python-fauxcache@a26201bf93df5c698676b953e28328da3594280c
     # via -r requirements.in
-fauxjson @ git+https://github.com/codefaux/python-fauxjson@7d43887f2b0ae43bc11014bfe930ef40f81f4c99
-    # via
-    #   -r requirements.in
-    #   cfsonarrmatcher
+fauxjson @ git+https://github.com/codefaux/python-fauxjson@39cf9fc7bafac9b57eb46161d59d18e3cc97ba85
+    # via -r requirements.in
 fauxlogger @ git+https://github.com/codefaux/python-fauxlogger@d97989e7c632328fcc881aaf41fc01d812edbc88
-    # via
-    #   -r requirements.in
-    #   cfsonarrmatcher
-    #   fauxjson
+    # via -r requirements.in
 h11==0.16.0
     # via
     #   httpcore

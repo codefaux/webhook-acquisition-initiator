@@ -2,9 +2,9 @@ FROM ghcr.io/codefaux/ytdlp-python-base:latest
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY requirements.txt /app/
 
-RUN pip install --no-cache-dir -r requirements.txt --prefer-binary
+RUN pip install --no-cache-dir -r /app/requirements.txt --prefer-binary
 
 COPY aging_queue_manager.py \
      config.py \
