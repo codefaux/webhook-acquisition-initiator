@@ -128,7 +128,7 @@ def match_and_check(item: dict) -> dict | None:
     from cfsonarrmatcher import match_to_episode, match_to_show
     from pyarr import SonarrAPI
 
-    sonarr = SonarrAPI(os.getenv("SONARR_URL"), os.getenv("SONARR_API"))
+    sonarr = SonarrAPI(config.sonarr.url, config.sonarr.api)
 
     _log.msg(
         f"Processing item:\n"
