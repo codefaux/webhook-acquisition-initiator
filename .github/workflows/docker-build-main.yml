@@ -31,7 +31,7 @@ jobs:
       - name: Get latest base image digest
         id: base
         run: |
-          DIGEST=$(docker manifest inspect $BASE_IMAGE | jq -r '.config.digest')
+          DIGEST=$(docker manifest inspect $BASE_IMAGE | jq -r '.manifests[0].digest')
           SHORT=${DIGEST#sha256:}
           SHORT=${SHORT:0:12}
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
