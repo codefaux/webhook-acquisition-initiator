@@ -26,36 +26,34 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Get latest base image digest
-        id: base_digest
+        id: base
         run: |
           DIGEST=$(docker manifest inspect $BASE_IMAGE | jq -r '.config.digest')
+          SHORT=${DIGEST#sha256:}
+          SHORT=${SHORT:0:12}
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          echo "short=$SHORT" >> $GITHUB_OUTPUT
 
-      - name: Read previous digest
-        id: prev_digest
+      - name: Set image tag based on base image
         run: |
-          if [ -f .last-base-digest ]; then
-            echo "digest=$(cat .last-base-digest)" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=base-${{ steps.base.outputs.short }}" >> $GITHUB_ENV
+
+      - name: Check if image already exists
+        id: exists
+        run: |
+          if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "digest=none" >> $GITHUB_OUTPUT
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Check if base image changed
-        id: changed
+      - name: Stop if already built (scheduled runs only)
+        if: github.event_name == 'schedule' && steps.exists.outputs.exists == 'true'
         run: |
-          if [ "${{ steps.base_digest.outputs.digest }}" != "${{ steps.prev_digest.outputs.digest }}" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Stop if no change (scheduled runs only)
-        if: github.event_name == 'schedule' && steps.changed.outputs.changed == 'false'
-        run: |
-          echo "No base image change detected. Skipping automatic build."
+          echo "Image for this base already exists. Skipping."
           exit 0
 
       - name: Set up Docker Buildx
@@ -68,30 +66,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate build version
-        run: echo "BUILD_TAG=build-$(date +'%Y%m%d')-${{ github.run_number }}" >> $GITHUB_ENV
-
-      - name: Extract Branch Name
-        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
-
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BUILD_TAG }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
-      - name: Save new digest
-        if: steps.changed.outputs.changed == 'true'
-        run: echo "${{ steps.base_digest.outputs.digest }}" > .last-base-digest
-
-      - name: Commit updated digest
-        if: steps.changed.outputs.changed == 'true'
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add .last-base-digest
-          git commit -m "Update base image digest"
-          git push
