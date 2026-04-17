@@ -7,29 +7,18 @@ on:
       - main
     paths:
       - 'Dockerfile'
-      - 'aging_queue_manager.py'
-      - 'config.py'
-      - 'decision_queue_manager.py'
-      - 'download_queue_manager.py'
-      - 'main.py'
-      - 'manual_intervention.py'
-      - 'processor.py'
-      - 'requirements.txt'
-      - 'schema.py'
-      - 'server.py'
-      - 'telegram-bot.py'
-      - 'thread-manager.py'
-      - 'util.py'
-      - 'ytdlp_interface.py'
       - '.github/workflows/docker-build-main.yml'
+  schedule:
+    - cron: '47 8 * * *' # Daily
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  BASE_IMAGE: ghcr.io/codefaux/ytdlp-python-base:latest
 
 permissions:
-  contents: read
-  packages: write
+  contents: write
+  packages: read
 
 jobs:
   build-and-push:
@@ -38,6 +27,36 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Get latest base image digest
+        id: base_digest
+        run: |
+          DIGEST=$(docker manifest inspect $BASE_IMAGE | jq -r '.config.digest')
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+      - name: Read previous digest
+        id: prev_digest
+        run: |
+          if [ -f .last-base-digest ]; then
+            echo "digest=$(cat .last-base-digest)" >> $GITHUB_OUTPUT
+          else
+            echo "digest=none" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if base image changed
+        id: changed
+        run: |
+          if [ "${{ steps.base_digest.outputs.digest }}" != "${{ steps.prev_digest.outputs.digest }}" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Stop if no change (scheduled runs only)
+        if: github.event_name == 'schedule' && steps.changed.outputs.changed == 'false'
+        run: |
+          echo "No base image change detected. Skipping automatic build."
+          exit 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -50,11 +69,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate build version
-        id: version
         run: echo "BUILD_TAG=build-$(date +'%Y%m%d')-${{ github.run_number }}" >> $GITHUB_ENV
 
       - name: Extract Branch Name
-        id: extract_branch
         run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
 
       - name: Build and push Docker image
@@ -65,3 +82,16 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BUILD_TAG }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Save new digest
+        if: steps.changed.outputs.changed == 'true'
+        run: echo "${{ steps.base_digest.outputs.digest }}" > .last-base-digest
+
+      - name: Commit updated digest
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add .last-base-digest
+          git commit -m "Update base image digest"
+          git push
