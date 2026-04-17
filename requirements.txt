@@ -23,7 +23,7 @@ colorama==0.4.6 ; sys_platform == 'win32'
     # via click
 fastapi==0.115.12
     # via -r requirements.in
-fauxcache @ git+https://github.com/codefaux/python-fauxcache@a26201bf93df5c698676b953e28328da3594280c
+fauxcache @ git+https://github.com/codefaux/python-fauxcache@c8d3a6147f74042ae9ddc58a51ca620e3ad9f89f
     # via -r requirements.in
 fauxjson @ git+https://github.com/codefaux/python-fauxjson@39cf9fc7bafac9b57eb46161d59d18e3cc97ba85
     # via -r requirements.in
