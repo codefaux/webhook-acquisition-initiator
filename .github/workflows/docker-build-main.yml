@@ -17,8 +17,8 @@ env:
   BASE_IMAGE: ghcr.io/codefaux/ytdlp-python-base:latest
 
 permissions:
-  contents: write
-  packages: read
+  contents: read
+  packages: write
 
 jobs:
   build-and-push:
