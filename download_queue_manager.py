@@ -7,6 +7,7 @@ import shutil
 import sys
 import threading
 import uuid
+from pathlib import Path
 
 import fauxjson as _json
 import fauxlogger as _log
@@ -75,6 +76,21 @@ def close_item(
     return None
 
 
+def link_or_copy(src, dst):
+    """Clone a file from ``src`` to ``dst``.
+    * Will attempt hard-link first, then copy
+    """
+
+    try:
+        os.link(src, dst)
+        _log.msg(f"Linked: {src} \n\t-> To: {dst}")
+    except OSError:
+        shutil.copy2(src, dst)
+        _log.msg(f"Copied: {src} \n\t-> To: {dst}")
+    else:
+        raise
+
+
 def safe_move(src, dst):
     """Rename a file from ``src`` to ``dst``.
 
@@ -129,7 +145,7 @@ def process_item(item: dict | None) -> tuple[bool, dict | None]:
     if not item:
         return False, None
 
-    item = rename_and_move_item(item)
+    item = rename_and_clone_item(item)
 
     if not item:
         return False, None
@@ -152,12 +168,11 @@ def process_item(item: dict | None) -> tuple[bool, dict | None]:
 def download_item(item: dict) -> dict | None:
     from ytdlp_interface import download_video
 
-    download_filename = download_video(
+    _item = download_video(
         item.get("url", ""), config.wai.temp_path or config.wai.output_path
     )
-    item["download_filename"] = download_filename
 
-    if not download_filename:
+    if not _item:
         _ = close_item(
             item,
             "No file at download location. Aborting download queue thread. (API will still function.)",
@@ -166,37 +181,57 @@ def download_item(item: dict) -> dict | None:
         )
         sys.exit(1)  # error condition
 
-    _log.msg(f"Download returned: {download_filename}")
+    item.update(_item)
+
+    _log.msg(f"Download returned: {item.get("download_filename")}")
 
     return item
 
 
-def rename_and_move_item(item: dict) -> dict | None:
-    from util import tag_filename
+def copy_to_archive(item: dict) -> dict:
+    # Copy downloaded file into archive, rewrite reference to point to new file
+    _info: dict = item["info_dict"]
 
-    tag_filepath = tag_filename(item.get("download_filename", ""))
-    file_name = os.path.basename(tag_filepath)
+    _src_file = Path(item["download_filename"])
+    _src_info = _src_file.with_suffix(".info.json")
+
+    _archive_base = config.wai.archive_path / _info["channel_id"] / _info["id"]
+
+    _archive_file = _archive_base / "video.mkv"
+    _archive_info = _archive_base / "video.info.json"
+
+    safe_move(_src_file, _archive_file)
+    safe_move(_src_info, _archive_info)
+
+    item["download_filename"] = _archive_file
+
+    return item
+
+
+def rename_and_clone_item(item: dict) -> dict | None:
+    from util import get_tagged_filename
+
+    item = copy_to_archive(item)
+    src_file = item["download_filename"]
+    src_info = Path(src_file).with_suffix(".info.json")
+
+    tagged_filepath = get_tagged_filename(item["download_filename"])
+
+    output_name = os.path.basename(tagged_filepath)
+    output_info = Path(output_name).with_suffix(".info.json")
+    output_path = os.path.abspath(config.wai.output_path)
 
     if config.wai.temp_path:  # NOT WORKING ?
-        safe_move(
-            tag_filepath,
-            os.path.join(os.path.abspath(config.wai.output_path), file_name),
+        link_or_copy(
+            src_file,
+            os.path.join(output_path, output_name),
         )
-        _log.msg(
-            f"Moved: {tag_filepath} \n\t-> To: {os.path.abspath(config.wai.output_path)}"
-        )
-        safe_move(
-            tag_filepath.replace(".mkv", ".info.json"),
-            os.path.join(
-                os.path.abspath(config.wai.output_path),
-                file_name.replace(".mkv", ".info.json"),
-            ),
-        )
-        _log.msg(
-            f"Moved: {tag_filepath.replace(".mkv", ".info.json")} \n\t-> To: {os.path.abspath(config.wai.output_path)}"
+        link_or_copy(
+            src_info,
+            os.path.join(output_path, output_info),
         )
 
-    item["file_name"] = file_name
+    item["file_name"] = output_name
 
     return item
 
