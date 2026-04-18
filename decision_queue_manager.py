@@ -1,12 +1,8 @@
 # decision_queue_manager.py
 
-import errno
 import json
 import os
-import shutil
-import sys
 import threading
-import uuid
 
 import fauxjson as _json
 import fauxlogger as _log
@@ -278,113 +274,6 @@ def match_and_check(item: dict) -> dict | None:
             "episode_has_file.json",
             subdir="history",
         )
-
-    return item
-
-
-def safe_move(src, dst):
-    """Rename a file from ``src`` to ``dst``.
-
-    *   Moves must be atomic.  ``shutil.move()`` is not atomic.
-        Note that multiple threads may try to write to the cache at once,
-        so atomicity is required to ensure the serving on one thread doesn't
-        pick up a partially saved image from another thread.
-
-    *   Moves must work across filesystems.  Often temp directories and the
-        cache directories live on different filesystems.  ``os.rename()`` can
-        throw errors if run across filesystems.
-
-    So we try ``os.rename()``, but if we detect a cross-filesystem copy, we
-    switch to ``shutil.move()`` with some wrappers to make it atomic.
-    """
-    try:
-        os.rename(src, dst)
-    except OSError as err:
-
-        if err.errno == errno.EXDEV:
-            # Generate a unique ID, and copy `<src>` to the target directory
-            # with a temporary name `<dst>.<ID>.tmp`.  Because we're copying
-            # across a filesystem boundary, this initial copy may not be
-            # atomic.  We intersperse a random UUID so if different processes
-            # are copying into `<dst>`, they don't overlap in their tmp copies.
-            copy_id = uuid.uuid4()
-            tmp_dst = "%s.%s.tmp" % (dst, copy_id)
-            shutil.copyfile(src, tmp_dst)
-
-            # Then do an atomic rename onto the new name, and clean up the
-            # source image.
-            os.rename(tmp_dst, dst)
-            os.unlink(src)
-        else:
-            raise
-
-
-def download_item(item: dict) -> dict | None:
-    from ytdlp_interface import download_video
-
-    download_filename = download_video(
-        item.get("url", ""), config.wai.temp_path or config.wai.output_path
-    )
-    item["download_filename"] = download_filename
-
-    if not download_filename:
-        _ = close_item(
-            item,
-            "No file at download location. Aborting main queue thread. (API will still function.)",
-            "download_fail.json",
-            subdir="history",
-        )
-        sys.exit(1)  # error condition
-
-    _log.msg(f"Download returned: {download_filename}")
-
-    return item
-
-
-def rename_and_move_item(item: dict) -> dict | None:
-    from util import tag_filename
-
-    tag_filepath = tag_filename(item.get("download_filename", ""))
-    file_name = os.path.basename(tag_filepath)
-
-    if config.wai.temp_path:  # NOT WORKING ?
-        safe_move(
-            tag_filepath,
-            os.path.join(os.path.abspath(config.wai.output_path), file_name),
-        )
-        _log.msg(
-            f"Moved: {tag_filepath} \n\t-> To: {os.path.abspath(config.wai.output_path)}"
-        )
-        safe_move(
-            tag_filepath.replace(".mkv", ".info.json"),
-            os.path.join(
-                os.path.abspath(config.wai.output_path),
-                file_name.replace(".mkv", ".info.json"),
-            ),
-        )
-        _log.msg(
-            f"Moved: {tag_filepath.replace(".mkv", ".info.json")} \n\t-> To: {os.path.abspath(config.wai.output_path)}"
-        )
-
-    item["file_name"] = file_name
-
-    return item
-
-
-def import_item(item: dict) -> dict | None:
-    from cfsonarr import import_downloaded_episode
-
-    _id = item["episode_result"].get("matched_series_id")
-    _season = item["episode_result"].get("season")
-    _episode = item["episode_result"].get("episode")
-    _filename = item["file_name"]
-    _folder = config.sonarr.in_path
-
-    import_result = import_downloaded_episode(
-        _id, _season, _episode, _filename, _folder
-    )
-
-    item["import_result"] = import_result
 
     return item
 
