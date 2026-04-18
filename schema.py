@@ -13,6 +13,7 @@ class ServarrConfig:
 class WAIConfig:
     output_path: str
     temp_path: str
+    archive_path: str
     data_dir: str = "./data"
     conf_dir: str = "./conf"
 
