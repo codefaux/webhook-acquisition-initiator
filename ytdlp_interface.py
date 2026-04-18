@@ -101,7 +101,7 @@ def anti_stall(info):
             raise DownloadError("Anti-Stall: No progress detected")
 
 
-def download_video(video_url: str, target_folder: str) -> str | None:
+def download_video(video_url: str, target_folder: str) -> dict | None:
     """Download a video using the yt_dlp Python API into the target folder.
     Returns the destination file path or None on failure.
     """
@@ -153,7 +153,7 @@ def download_video(video_url: str, target_folder: str) -> str | None:
         info_dict = ydl.extract_info(video_url, download=True)
 
         if info_dict is None:
-            return ""
+            return None
 
         output_file = ydl.prepare_filename(info_dict)
         if not os.path.isfile(output_file):
@@ -161,7 +161,8 @@ def download_video(video_url: str, target_folder: str) -> str | None:
                 f"{_log._RED}Download failed or file not found: {_log._RESET} {output_file}"
             )
             return None
-        return output_file
+
+        return {"download_filename": output_file, "info_dict": info_dict}
 
 
 def handle_downloading(status: dict):
