@@ -231,9 +231,10 @@ def process_queue(stop_event: threading.Event):
     while not stop_event.is_set():
         with dl_queue_condition:
             while not dl_item and not dl_queue and not stop_event.is_set():
-                _log.msg(
-                    f"No current item. No queue. Sleeping for at most {config.download_queue.interval} min."
-                )
+                if config.debug.debug_print:
+                    _log.msg(
+                        f"No current item. No queue. Sleeping for at most {config.download_queue.interval} min."
+                    )
                 dl_queue_condition.wait(timeout=config.download_queue.interval * 60)
 
             if dl_queue and not dl_item:

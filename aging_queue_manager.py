@@ -158,9 +158,10 @@ def process_queue(stop_event: threading.Event):
     while not stop_event.is_set():
         with aging_queue_condition:
             while not aging_item and not aging_queue and not stop_event.is_set():
-                _log.msg(
-                    f"No current aging item. No aging queue. Sleeping for at most {config.aging_queue.interval} min."
-                )
+                if config.debug.debug_print:
+                    _log.msg(
+                        f"No current aging item. No aging queue. Sleeping for at most {config.aging_queue.interval} min."
+                    )
                 aging_queue_condition.wait(timeout=config.aging_queue.interval * 60)
 
             if not aging_item and aging_queue:
