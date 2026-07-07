@@ -3,18 +3,17 @@ import os
 import sys
 import tomllib
 from pathlib import Path
-from typing import Union, get_args, get_origin, get_type_hints
+from typing import (Generic, Type, TypeVar, Union, get_args, get_origin,
+                    get_type_hints)
 
-from schema import WAIConfigRoot
+T = TypeVar("T")
 
-CONFIG_ENV_PREFIX = "WAI_"
-CONFIG_FILE = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
 
 # USE:
 # from config import Config
+# from schema import yourSchemaHere
 
-# config = Config()
-# config = Config("/path/to/config.toml")
+# config: Config[yourSchemaHere] = Config(schema=yourSchemaHere, path=CONFIG_FILE, env_prefix="EXAMPLE_")
 
 
 class ConfigNode:
@@ -33,22 +32,23 @@ class ConfigNode:
         except KeyError:
             raise AttributeError(name)
 
-    # def __repr__(self):
-    #     return f"ConfigNode({self._data})"
 
-
-class Config:
+class Config(Generic[T]):
     _instance = None
+    data: T
 
-    def __new__(cls, path=CONFIG_FILE, schema=WAIConfigRoot):
+    def __new__(cls, schema: type[T], path: str, env_prefix: str):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._init(path, schema)
+            cls._instance._init(path, schema, env_prefix)
         return cls._instance
 
-    def _init(self, path, schema):
-        self.path = Path(path) if Path(path).is_absolute() else Path(Path.cwd() / path)
-        self.schema = schema
+    def _init(self, path: str, schema: type[T], env_prefix: str):
+        self.path: Path = (
+            Path(path) if Path(path).is_absolute() else Path(Path.cwd() / path)
+        )
+        self.env_prefix: str = env_prefix
+        self.schema: Type[T] = schema
         self.reload()
 
     def reload(self):
@@ -95,10 +95,10 @@ class Config:
                     return v
 
             for env, value in os.environ.items():
-                if not env.startswith(CONFIG_ENV_PREFIX):
+                if not env.startswith(self.env_prefix):
                     continue
 
-                _len = len(CONFIG_ENV_PREFIX)
+                _len = len(self.env_prefix)
                 keypath = env[_len:].lower().split("__")
                 ref = data
 
@@ -107,11 +107,13 @@ class Config:
 
                 ref[keypath[-1]] = _parse_env(value)
 
-        def _apply_schema():
+        def _apply_schema() -> T:
             hints = get_type_hints(self.schema)
             kwargs = {}
 
-            for field in dataclasses.fields(self.schema):
+            for field in dataclasses.fields(
+                self.schema  # pyright: ignore[reportArgumentType]
+            ):
                 field_type = _resolve_optional(hints[field.name])
                 value = data.get(field.name)
 
@@ -171,8 +173,3 @@ class Config:
 
         if self.schema:
             self.data = _apply_schema()
-        else:
-            self.data = ConfigNode(data)
-
-    def __getattr__(self, item):
-        return getattr(self.data, item)
