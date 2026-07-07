@@ -9,11 +9,13 @@ import thread_manager
 import uvicorn
 from cfsonarr import validate_sonarr_config
 from config import Config
+from schema import WAIConfigRoot
 from server import fastapi
 
-CONFIG_FILE = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
-
-config = Config()
+CONFIG_FILE: str = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
+config: Config[WAIConfigRoot] = Config(
+    schema=WAIConfigRoot, path=CONFIG_FILE, env_prefix="WAI_"
+)
 
 
 if __name__ == "__main__":

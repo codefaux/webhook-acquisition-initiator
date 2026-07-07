@@ -12,8 +12,12 @@ import fauxjson as _json
 import fauxlogger as _log
 from config import Config
 from fauxcache import timed_cache
+from schema import WAIConfigRoot
 
-config = Config()
+CONFIG_FILE: str = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
+config: Config[WAIConfigRoot] = Config(
+    schema=WAIConfigRoot, path=CONFIG_FILE, env_prefix="WAI_"
+)
 
 DECISION_QUEUE_FILE = os.path.join(config.wai.data_dir, config.decision_queue.file)
 

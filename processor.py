@@ -6,8 +6,12 @@ import os
 import re
 
 from config import Config
+from schema import WAIConfigRoot
 
-config = Config()
+CONFIG_FILE: str = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
+config: Config[WAIConfigRoot] = Config(
+    schema=WAIConfigRoot, path=CONFIG_FILE, env_prefix="WAI_"
+)
 
 
 def process_message(raw_text: str) -> dict:

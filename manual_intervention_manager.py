@@ -8,8 +8,12 @@ from uuid import uuid4
 
 import fauxlogger as _log
 from config import Config
+from schema import WAIConfigRoot
 
-config = Config()
+CONFIG_FILE: str = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
+config: Config[WAIConfigRoot] = Config(
+    schema=WAIConfigRoot, path=CONFIG_FILE, env_prefix="WAI_"
+)
 
 MI_QUEUE_FILE: Final[str] = os.path.join(
     config.wai.data_dir, config.manual_intervention.file

@@ -5,9 +5,13 @@ import fauxlogger as _log
 import yt_dlp
 import yt_dlp.options
 from config import Config
+from schema import WAIConfigRoot
 from yt_dlp.utils import DownloadError
 
-config = Config()
+CONFIG_FILE: str = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
+config: Config[WAIConfigRoot] = Config(
+    schema=WAIConfigRoot, path=CONFIG_FILE, env_prefix="WAI_"
+)
 
 NETRC_FILE = os.path.join(config.wai.conf_dir, config.ytdlp.netrc_file)
 YTDLPCONF_FILE = os.path.join(config.wai.conf_dir, config.ytdlp.conf_file)

@@ -1,3 +1,4 @@
+import os
 import threading
 
 import fauxlogger as _log
@@ -6,9 +7,13 @@ from config import Config
 from decision_queue_manager import process_queue as process_decision_queue
 from download_queue_manager import process_queue as process_download_queue
 from manual_intervention_manager import mi_thread_worker as run_mi_thread
+from schema import WAIConfigRoot
 from telegram_bot import telegram_bot_thread as run_telegram_thread
 
-config = Config()
+CONFIG_FILE: str = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
+config: Config[WAIConfigRoot] = Config(
+    schema=WAIConfigRoot, path=CONFIG_FILE, env_prefix="WAI_"
+)
 
 stop_event = threading.Event()
 decision_queue_thread = threading.Thread()

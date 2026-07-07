@@ -18,12 +18,16 @@ from manual_intervention_manager import (drop_mi_queue_item, get_mi_queue,
 from manual_intervention_manager import \
     remove_notify_listener as remove_mi_notify
 from manual_intervention_manager import save_mi_queue, set_mi_queue_item
+from schema import WAIConfigRoot
 # from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import Update
 from telegram.ext import (Application, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
-config = Config()
+CONFIG_FILE: str = os.getenv("WAI_CONFIG_FILE", "./conf/wai.toml")
+config: Config[WAIConfigRoot] = Config(
+    schema=WAIConfigRoot, path=CONFIG_FILE, env_prefix="WAI_"
+)
 
 KNOWN_CHATS_FILE: Final[str] = os.path.join(
     config.wai.data_dir, config.telegram.known_chats_file
