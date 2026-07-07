@@ -43,7 +43,6 @@ def load_decision_queue():
 
 
 def save_decision_queue():
-    global decision_queue
     with open(DECISION_QUEUE_FILE, "w") as f:
         json.dump(decision_queue, f, indent=2)
 
@@ -432,7 +431,6 @@ def process_item(item: dict | None) -> tuple[bool, dict | None]:
 
 def process_queue(stop_event: threading.Event):
     global item
-    global decision_queue
 
     if item is None:
         item = _json.load_json("current_decision.json")

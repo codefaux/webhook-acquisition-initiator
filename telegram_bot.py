@@ -203,8 +203,6 @@ def mi_data_to_short_message(mi_data: mi_tuple_type, header: str | None = None) 
 
 
 def load_known_chats():
-    global known_chats
-
     if os.path.exists(KNOWN_CHATS_FILE):
         with open(KNOWN_CHATS_FILE, "r") as f:
             try:
@@ -219,8 +217,6 @@ def load_known_chats():
 
 
 def load_notify_chats():
-    global notify_chats
-
     if os.path.exists(NOTIFY_CHATS_FILE):
         with open(NOTIFY_CHATS_FILE, "r") as f:
             try:
@@ -235,13 +231,11 @@ def load_notify_chats():
 
 
 def save_known_chats():
-    global known_chats
     with open(KNOWN_CHATS_FILE, "w") as f:
         json.dump(list(known_chats), f, indent=2)
 
 
 def save_notify_chats():
-    global notify_chats
     with open(NOTIFY_CHATS_FILE, "w") as f:
         json.dump(list(notify_chats), f, indent=2)
 

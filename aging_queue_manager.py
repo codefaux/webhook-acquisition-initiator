@@ -41,7 +41,6 @@ def load_aging_queue():
 
 
 def save_aging_queue():
-    global aging_queue
     with open(AGING_QUEUE_FILE, "w") as f:
         json.dump(aging_queue, f, indent=2)
 
@@ -152,7 +151,6 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
 
 def process_queue(stop_event: threading.Event):
     global aging_item
-    global aging_queue
 
     if aging_item is None:
         aging_item = _json.load_json("current_aging.json")

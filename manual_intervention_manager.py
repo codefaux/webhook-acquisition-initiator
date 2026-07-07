@@ -49,7 +49,6 @@ def load_mi_queue():
 
 
 def save_mi_queue():
-    global mi_queue
     with mi_queue_lock:
         with open(MI_QUEUE_FILE, "w") as f:
             json.dump(mi_queue, f, indent=2)

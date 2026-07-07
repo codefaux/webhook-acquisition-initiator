@@ -42,7 +42,6 @@ def load_download_queue():
 
 
 def save_download_queue():
-    global dl_queue
     with open(DOWNLOAD_QUEUE_FILE, "w") as f:
         json.dump(dl_queue, f, indent=2)
 
@@ -227,7 +226,6 @@ def import_item(item: dict) -> dict | None:
 
 def process_queue(stop_event: threading.Event):
     global dl_item
-    global dl_queue
 
     if dl_item is None:
         dl_item = _json.load_json("current_download.json")
