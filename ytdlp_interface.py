@@ -13,13 +13,21 @@ config: Config[WAIConfigRoot] = Config(
     schema=WAIConfigRoot, path=CONFIG_FILE, env_prefix="WAI_"
 )
 
-NETRC_FILE = os.path.join(config.wai.conf_dir, config.ytdlp.netrc_file)
-YTDLPCONF_FILE = os.path.join(config.wai.conf_dir, config.ytdlp.conf_file)
-COOOKIES_FILE = os.path.join(config.wai.conf_dir, config.ytdlp.cookies_file)
-
-using_netrc = os.path.exists(NETRC_FILE)
-using_ytdlpconf = os.path.exists(YTDLPCONF_FILE)
-using_cookies = os.path.exists(COOOKIES_FILE)
+NETRC_FILE: str | None = (
+    os.path.join(config.data.wai.conf_dir, config.data.ytdlp.netrc_file)
+    if config.data.ytdlp.netrc_file
+    else None
+)
+YTDLPCONF_FILE: str | None = (
+    os.path.join(config.data.wai.conf_dir, config.data.ytdlp.conf_file)
+    if config.data.ytdlp.conf_file
+    else None
+)
+COOOKIES_FILE: str | None = (
+    os.path.join(config.data.wai.conf_dir, config.data.ytdlp.cookies_file)
+    if config.data.ytdlp.cookies_file
+    else None
+)
 
 last_print_time = 0
 last_print_percent = 0
@@ -136,21 +144,25 @@ def download_video(video_url: str, target_folder: str) -> str | None:
         "writeplaylistmetafiles": True,
     }
 
-    if using_ytdlpconf:
-        ydl_opts.update(cli_to_api(["--config-locations", f"{config.wai.conf_dir}"]))
-    if using_netrc:
+    if YTDLPCONF_FILE:
+        ydl_opts.update(
+            cli_to_api(["--config-locations", f"{config.data.wai.conf_dir}"])
+        )
+    if NETRC_FILE:
         ydl_opts["usenetrc"] = True
-        ydl_opts["netrc_location"] = NETRC_FILE
-    if using_cookies:
-        ydl_opts["cookiefile"] = COOOKIES_FILE
+        ydl_opts["netrc_location"] = NETRC_FILE  # pyright: ignore[reportArgumentType]
+    if COOOKIES_FILE:
+        ydl_opts["cookiefile"] = COOOKIES_FILE  # pyright: ignore[reportArgumentType]
 
-    ydl_opts["outtmpl"] = os.path.join(target_folder, "%(title)s.%(ext)s")
+    ydl_opts["outtmpl"] = os.path.join(  # pyright: ignore[reportArgumentType]
+        target_folder, "%(title)s.%(ext)s"
+    )
 
     _log.msg(
         f"{_log._GREEN}Starting download of '{video_url}' "
-        f"- {_log._YELLOW}netrc {_log._GREEN if using_netrc else _log._RED}{using_netrc}{_log._RESET}"
-        f", {_log._YELLOW}yt-dlp.conf {_log._GREEN if using_ytdlpconf else _log._RED}{using_ytdlpconf}{_log._RESET}"
-        f", {_log._YELLOW}cookies {_log._GREEN if using_cookies else _log._RED}{using_cookies}{_log._RESET}"
+        f"- {_log._YELLOW}netrc {_log._GREEN if NETRC_FILE else _log._RED}{NETRC_FILE}{_log._RESET}"
+        f", {_log._YELLOW}yt-dlp.conf {_log._GREEN if YTDLPCONF_FILE else _log._RED}{YTDLPCONF_FILE}{_log._RESET}"
+        f", {_log._YELLOW}cookies {_log._GREEN if COOOKIES_FILE else _log._RED}{COOOKIES_FILE}{_log._RESET}"
     )
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # pyright: ignore[reportArgumentType]

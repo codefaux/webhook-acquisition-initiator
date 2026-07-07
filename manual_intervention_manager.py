@@ -16,7 +16,7 @@ config: Config[WAIConfigRoot] = Config(
 )
 
 MI_QUEUE_FILE: Final[str] = os.path.join(
-    config.wai.data_dir, config.manual_intervention.file
+    config.data.wai.data_dir, config.data.manual_intervention.file
 )
 
 mi_queue_lock: Final = threading.Lock()

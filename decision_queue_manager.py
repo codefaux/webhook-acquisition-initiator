@@ -19,7 +19,9 @@ config: Config[WAIConfigRoot] = Config(
     schema=WAIConfigRoot, path=CONFIG_FILE, env_prefix="WAI_"
 )
 
-DECISION_QUEUE_FILE = os.path.join(config.wai.data_dir, config.decision_queue.file)
+DECISION_QUEUE_FILE = os.path.join(
+    config.data.wai.data_dir, config.data.decision_queue.file
+)
 
 decision_queue_lock = threading.Lock()
 decision_queue_condition = threading.Condition(lock=decision_queue_lock)
@@ -72,7 +74,7 @@ def close_item(
     stack_offset: int = 2,
     subdir: str = "",
 ) -> dict | None:
-    if config.debug.debug_break:
+    if config.data.debug and config.data.debug.debug_break:
         breakpoint()
     _log.msg(message, stack_offset)
     if filename:
@@ -84,7 +86,7 @@ def close_item(
 
 def diagnose_show_score(item: dict) -> dict | None:
     # ...? resolution: manual intervention queue
-    if config.debug.debug_break:
+    if config.data.debug and config.data.debug.debug_break:
         breakpoint()
 
     return close_item(
@@ -109,10 +111,10 @@ def diagnose_episode_score(item: dict) -> dict | None:
     )
 
     ripeness = get_new_ripeness(item)
-    if config.debug.debug_break:
+    if config.data.debug and config.data.debug.debug_break:
         breakpoint()
 
-    if ripeness < config.aging_queue.ripeness_per_day * 3:
+    if ripeness < config.data.aging_queue.ripeness_per_day * 3:
         aging_enqueue(item)
         return close_item(item, f"Ripeness {ripeness}: Requeue to aging queue", None)
 
@@ -132,7 +134,7 @@ def match_and_check(item: dict) -> dict | None:
     from cfsonarrmatcher import match_to_episode, match_to_show
     from pyarr import SonarrAPI
 
-    sonarr = SonarrAPI(config.sonarr.url, config.sonarr.api)
+    sonarr = SonarrAPI(config.data.sonarr.url, config.data.sonarr.api)
 
     _log.msg(
         f"Processing item:\n"
@@ -145,7 +147,9 @@ def match_and_check(item: dict) -> dict | None:
     show_titles = []
     id_is_monitored = {}
 
-    for _s in timed_cache(ttl=config.decision_queue.cache_ttl)(sonarr.get_series)():
+    for _s in timed_cache(ttl=config.data.decision_queue.cache_ttl)(
+        sonarr.get_series
+    )():
         show_titles.append((_s["title"], _s["id"]))
         id_is_monitored[_s["id"]] = _s["monitored"]
 
@@ -172,10 +176,12 @@ def match_and_check(item: dict) -> dict | None:
         _log.msg(f"Series title match {_log._RED}not good enough.{_log._RESET}")
 
     sonarr_relevant_tags = [
-        timed_cache(ttl=config.decision_queue.cache_ttl)(sonarr.get_tag_detail)(
+        timed_cache(ttl=config.data.decision_queue.cache_ttl)(sonarr.get_tag_detail)(
             _tag.get("id")
         )
-        for _tag in timed_cache(ttl=config.decision_queue.cache_ttl)(sonarr.get_tag)()
+        for _tag in timed_cache(ttl=config.data.decision_queue.cache_ttl)(
+            sonarr.get_tag
+        )()
         if _tag.get("label").startswith("wai-")
     ]
     sonarr_relevant_tags = {
@@ -186,8 +192,8 @@ def match_and_check(item: dict) -> dict | None:
 
     for series_ids in sonarr_relevant_tags.values():
         for series_id in series_ids:
-            if not config.decision_queue.honor_unmon_series or (
-                config.decision_queue.honor_unmon_series
+            if not config.data.decision_queue.honor_unmon_series or (
+                config.data.decision_queue.honor_unmon_series
                 and id_is_monitored.get(title_result["matched_id"])
             ):
                 if series_id != matched_id:
@@ -201,17 +207,17 @@ def match_and_check(item: dict) -> dict | None:
     episode_result = {}
 
     for candidate_series_id in candidate_series_ids:
-        _series_name = timed_cache(ttl=config.decision_queue.cache_ttl)(
+        _series_name = timed_cache(ttl=config.data.decision_queue.cache_ttl)(
             sonarr.get_series
         )(candidate_series_id, {}).get("title", "")
         _log.msg(
             f"Scan episodes of candidate series: {candidate_series_id} ({_series_name})"
         )
 
-        for _ep in timed_cache(ttl=config.decision_queue.cache_ttl)(sonarr.get_episode)(
-            candidate_series_id, True
-        ):
-            if config.decision_queue.honor_unmon_eps and not _ep["monitored"]:
+        for _ep in timed_cache(ttl=config.data.decision_queue.cache_ttl)(
+            sonarr.get_episode
+        )(candidate_series_id, True):
+            if config.data.decision_queue.honor_unmon_eps and not _ep["monitored"]:
                 continue
 
             _ep["series"] = _series_name
@@ -258,24 +264,32 @@ def match_and_check(item: dict) -> dict | None:
         f"\t{_log._YELLOW}reasons:{_log._RESET} {episode_result.get('reason', '')}"
     )
 
-    if config.debug.debug_safe and (
-        episode_result["score"] < config.debug.decision_lower
+    if (
+        config.data.debug
+        and config.data.debug.debug_safe
+        and (episode_result["score"] < config.data.debug.decision_lower)
     ):
         breakpoint()
-    if config.debug.debug_safe and (
-        episode_result["score"] > config.debug.decision_upper
+    if (
+        config.data.debug
+        and config.data.debug.debug_safe
+        and (episode_result["score"] > config.data.debug.decision_upper)
     ):
         breakpoint()
 
-    if config.debug.debug_safe and ("dates" in episode_result["reason"]):
+    if (
+        config.data.debug
+        and config.data.debug.debug_safe
+        and ("dates" in episode_result["reason"])
+    ):
         breakpoint()
 
     if episode_result["score"] < 70:
         return diagnose_episode_score(item)
 
-    if not config.decision_queue.overwrite_eps and episode_result["full_match"].get(
-        "has_file"
-    ):
+    if not config.data.decision_queue.overwrite_eps and episode_result[
+        "full_match"
+    ].get("has_file"):
         return close_item(
             item,
             "Episode already has file. Aborting.",
@@ -327,7 +341,7 @@ def download_item(item: dict) -> dict | None:
     from ytdlp_interface import download_video
 
     download_filename = download_video(
-        item.get("url", ""), config.wai.temp_path or config.wai.output_path
+        item.get("url", ""), config.data.wai.temp_path or config.data.wai.output_path
     )
     item["download_filename"] = download_filename
 
@@ -351,23 +365,23 @@ def rename_and_move_item(item: dict) -> dict | None:
     tag_filepath = tag_filename(item.get("download_filename", ""))
     file_name = os.path.basename(tag_filepath)
 
-    if config.wai.temp_path:  # NOT WORKING ?
+    if config.data.wai.temp_path:  # NOT WORKING ?
         safe_move(
             tag_filepath,
-            os.path.join(os.path.abspath(config.wai.output_path), file_name),
+            os.path.join(os.path.abspath(config.data.wai.output_path), file_name),
         )
         _log.msg(
-            f"Moved: {tag_filepath} \n\t-> To: {os.path.abspath(config.wai.output_path)}"
+            f"Moved: {tag_filepath} \n\t-> To: {os.path.abspath(config.data.wai.output_path)}"
         )
         safe_move(
             tag_filepath.replace(".mkv", ".info.json"),
             os.path.join(
-                os.path.abspath(config.wai.output_path),
+                os.path.abspath(config.data.wai.output_path),
                 file_name.replace(".mkv", ".info.json"),
             ),
         )
         _log.msg(
-            f"Moved: {tag_filepath.replace(".mkv", ".info.json")} \n\t-> To: {os.path.abspath(config.wai.output_path)}"
+            f"Moved: {tag_filepath.replace(".mkv", ".info.json")} \n\t-> To: {os.path.abspath(config.data.wai.output_path)}"
         )
 
     item["file_name"] = file_name
@@ -382,7 +396,7 @@ def import_item(item: dict) -> dict | None:
     _season = item["episode_result"].get("season")
     _episode = item["episode_result"].get("episode")
     _filename = item["file_name"]
-    _folder = config.sonarr.in_path
+    _folder = config.data.sonarr.in_path
 
     import_result = import_downloaded_episode(
         _id, _season, _episode, _filename, _folder
@@ -404,7 +418,7 @@ def process_item(item: dict | None) -> tuple[bool, dict | None]:
     if not item:
         return False, None
 
-    if config.debug.debug_break:
+    if config.data.debug and config.data.debug.debug_break:
         breakpoint()
 
     enqueue_download(item)
@@ -428,17 +442,17 @@ def process_queue(stop_event: threading.Event):
     while not stop_event.is_set():
         with decision_queue_condition:
             while not item and not decision_queue and not stop_event.is_set():
-                if config.debug.debug_print:
+                if config.data.debug and config.data.debug.debug_print:
                     _log.msg(
-                        f"No current item. No queue. Sleeping for at most {config.decision_queue.interval} min."
+                        f"No current item. No queue. Sleeping for at most {config.data.decision_queue.interval} min."
                     )
                 decision_queue_condition.wait(
-                    timeout=config.decision_queue.interval * 60
+                    timeout=config.data.decision_queue.interval * 60
                 )
 
             if decision_queue and not item:
                 item = decision_queue.pop(0)
-                if config.decision_queue.flip_flop:
+                if config.data.decision_queue.flip_flop:
                     _log.msg("Inverting queue")
                     decision_queue.reverse()
                 _json.save_json(item, "current_decision.json", True)
@@ -451,8 +465,10 @@ def process_queue(stop_event: threading.Event):
             if not wait_before_loop:
                 continue
 
-            _log.msg(f"Queue thread sleeping for {config.decision_queue.interval} min.")
+            _log.msg(
+                f"Queue thread sleeping for {config.data.decision_queue.interval} min."
+            )
             with decision_queue_condition:
                 decision_queue_condition.wait(
-                    timeout=config.decision_queue.interval * 60
+                    timeout=config.data.decision_queue.interval * 60
                 )

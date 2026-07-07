@@ -30,12 +30,12 @@ config: Config[WAIConfigRoot] = Config(
 )
 
 KNOWN_CHATS_FILE: Final[str] = os.path.join(
-    config.wai.data_dir, config.telegram.known_chats_file
+    config.data.wai.data_dir, config.data.telegram.known_chats_file
 )
 known_chats = set()
 
 NOTIFY_CHATS_FILE: Final[str] = os.path.join(
-    config.wai.data_dir, config.telegram.notify_chats_file
+    config.data.wai.data_dir, config.data.telegram.notify_chats_file
 )
 notify_chats = set()
 
@@ -250,7 +250,7 @@ async def add_known_chat(update: Update, _):
     if update.effective_chat and update.effective_chat.id not in known_chats:
         known_chats.add(update.effective_chat.id)
         save_known_chats()
-        if config.debug.debug_print:
+        if config.data.debug and config.data.debug.debug_print:
             _log.msg(f"Known chats: {known_chats}")
 
 
@@ -258,21 +258,21 @@ async def add_notify_chat(update: Update):
     if update.effective_chat and update.effective_chat.id not in notify_chats:
         notify_chats.add(update.effective_chat.id)
         save_notify_chats()
-        if config.debug.debug_print:
+        if config.data.debug and config.data.debug.debug_print:
             _log.msg(f"Notify chats: {notify_chats}")
 
 
 async def remove_known_chat(update: Update):
     if update.effective_chat and update.effective_chat.id in known_chats:
         known_chats.remove(update.effective_chat.id)
-        if config.debug.debug_print:
+        if config.data.debug and config.data.debug.debug_print:
             _log.msg(f"Known chats: {known_chats}")
 
 
 async def remove_notify_chat(update: Update):
     if update.effective_chat and update.effective_chat.id in notify_chats:
         notify_chats.remove(update.effective_chat.id)
-        if config.debug.debug_print:
+        if config.data.debug and config.data.debug.debug_print:
             _log.msg(f"Notify chats: {notify_chats}")
 
 
@@ -374,7 +374,7 @@ async def send_message(text: str, chat_id: str | None):
     if not app:
         raise RuntimeError("Bot not running yet")
 
-    target_chat_id = chat_id or config.telegram.chat_id
+    target_chat_id = chat_id or config.data.telegram.chat_id
     if not target_chat_id:
         raise RuntimeError("No chat_id provided and TELEGRAM_DEFAULT_CHAT_ID not set")
 
@@ -770,10 +770,10 @@ def mi_notify_callback(mi_data: mi_tuple_type) -> None:
 async def bot_start(stop_event: threading.Event):
     global app, loop
 
-    if not config.telegram.token:
-        raise RuntimeError("Missing config.telegram.token config")
+    if not config.data.telegram.token:
+        raise RuntimeError("Missing config.data.telegram.token config")
 
-    app = Application.builder().token(config.telegram.token).build()
+    app = Application.builder().token(config.data.telegram.token).build()
     loop = asyncio.get_running_loop()
 
     load_known_chats()

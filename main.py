@@ -19,14 +19,14 @@ config: Config[WAIConfigRoot] = Config(
 
 
 if __name__ == "__main__":
-    os.makedirs(config.wai.conf_dir, exist_ok=True)
-    os.makedirs(config.wai.data_dir, exist_ok=True)
+    os.makedirs(config.data.wai.conf_dir, exist_ok=True)
+    os.makedirs(config.data.wai.data_dir, exist_ok=True)
 
     _log.msg(f"Config: {CONFIG_FILE}")
 
     retries = 0
     while retries < 5:
-        if validate_sonarr_config(config.sonarr.url, config.sonarr.api):
+        if validate_sonarr_config(config.data.sonarr.url, config.data.sonarr.api):
             retries = 0
             break
         else:

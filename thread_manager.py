@@ -146,20 +146,20 @@ def stop_mi_thread():
 
 
 def startup():
-    if config.decision_queue.run:
+    if config.data.decision_queue.run:
         _log.msg("Starting Decision Queue Manager")
         start_decision_queue_manager()
-    if config.aging_queue.run:
+    if config.data.aging_queue.run:
         _log.msg("Starting Aging Queue Manager")
         start_aging_queue_manager()
-    if config.download_queue.run:
+    if config.data.download_queue.run:
         _log.msg("Starting Download Queue Manager")
         start_download_queue_manager()
-    if config.manual_intervention.run:
+    if config.data.manual_intervention.run:
         _log.msg("Starting Manual Intervention Thread")
         start_mi_thread()
 
-        if config.telegram.run:
+        if config.data.telegram.run:
             _log.msg("Starting Telegram Bot")
             start_telegram_bot()
 

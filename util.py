@@ -75,7 +75,7 @@ def get_next_aging_time(aging_item: dict) -> int:
 def get_new_ripeness(item: dict) -> int:
     return (
         date_distance_days(item["datecode"], date.today().strftime("%Y-%m-%d"))
-        * config.aging_queue.ripeness_per_day
+        * config.data.aging_queue.ripeness_per_day
     )
 
 

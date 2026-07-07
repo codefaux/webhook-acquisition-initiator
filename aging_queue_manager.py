@@ -16,7 +16,7 @@ config: Config[WAIConfigRoot] = Config(
 )
 
 
-AGING_QUEUE_FILE = os.path.join(config.wai.data_dir, config.aging_queue.file)
+AGING_QUEUE_FILE = os.path.join(config.data.wai.data_dir, config.data.aging_queue.file)
 
 
 aging_queue_lock = threading.Lock()
@@ -68,7 +68,7 @@ def close_aging_item(
     stack_offset: int = 2,
     subdir: str = "",
 ) -> None:
-    # if config.debug.debug_break:
+    # if config.data.debug and  config.data.debug.debug_break:
     #     breakpoint()
     _log.msg(message, stack_offset)
     if filename:
@@ -111,7 +111,7 @@ def process_aging_item(aging_item: dict) -> tuple[bool, dict | None]:
     if aging_item.get("ripeness", -1) == -1:
         aging_item["ripeness"] = get_new_ripeness(aging_item)
 
-    if aging_item["ripeness"] < config.aging_queue.ripeness_per_day * 3:
+    if aging_item["ripeness"] < config.data.aging_queue.ripeness_per_day * 3:
         checked_item = recheck_episode_match(aging_item)
 
         if checked_item:
@@ -162,11 +162,13 @@ def process_queue(stop_event: threading.Event):
     while not stop_event.is_set():
         with aging_queue_condition:
             while not aging_item and not aging_queue and not stop_event.is_set():
-                if config.debug.debug_print:
+                if config.data.debug and config.data.debug.debug_print:
                     _log.msg(
-                        f"No current aging item. No aging queue. Sleeping for at most {config.aging_queue.interval} min."
+                        f"No current aging item. No aging queue. Sleeping for at most {config.data.aging_queue.interval} min."
                     )
-                aging_queue_condition.wait(timeout=config.aging_queue.interval * 60)
+                aging_queue_condition.wait(
+                    timeout=config.data.aging_queue.interval * 60
+                )
 
             if not aging_item and aging_queue:
                 now = int(datetime.now().timestamp())
@@ -177,7 +179,7 @@ def process_queue(stop_event: threading.Event):
                 ]
                 if eligible_aging_items:
                     # Sort by next_aging to pick the most overdue item
-                    if config.debug.debug_print:
+                    if config.data.debug and config.data.debug.debug_print:
                         _log.msg("Sorting eligible items..")
                     eligible_aging_items.sort(
                         key=lambda item: item.get("next_aging", 0)
@@ -186,7 +188,7 @@ def process_queue(stop_event: threading.Event):
                     aging_queue.remove(aging_item)
                     _json.save_json(aging_item, "current_aging.json", True)
                     save_aging_queue()
-                elif config.debug.debug_print:
+                elif config.data.debug and config.data.debug.debug_print:
                     _log.msg("Queue present but no eligible items.")
 
         if aging_item:
@@ -205,9 +207,9 @@ def process_queue(stop_event: threading.Event):
             if not wait_before_loop:
                 continue
 
-        if config.debug.debug_print:
+        if config.data.debug and config.data.debug.debug_print:
             _log.msg(
-                f"Aging queue thread sleeping for {config.aging_queue.interval} min."
+                f"Aging queue thread sleeping for {config.data.aging_queue.interval} min."
             )
         with aging_queue_condition:
-            aging_queue_condition.wait(timeout=config.aging_queue.interval * 60)
+            aging_queue_condition.wait(timeout=config.data.aging_queue.interval * 60)

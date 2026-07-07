@@ -18,7 +18,9 @@ config: Config[WAIConfigRoot] = Config(
     schema=WAIConfigRoot, path=CONFIG_FILE, env_prefix="WAI_"
 )
 
-DOWNLOAD_QUEUE_FILE = os.path.join(config.wai.data_dir, config.download_queue.file)
+DOWNLOAD_QUEUE_FILE = os.path.join(
+    config.data.wai.data_dir, config.data.download_queue.file
+)
 
 dl_queue_lock = threading.Lock()
 dl_queue_condition = threading.Condition(lock=dl_queue_lock)
@@ -69,7 +71,7 @@ def close_item(
     stack_offset: int = 2,
     subdir: str = "",
 ) -> dict | None:
-    if config.debug.debug_break:
+    if config.data.debug and config.data.debug.debug_break:
         breakpoint()
     _log.msg(message, stack_offset)
     if filename:
@@ -157,7 +159,7 @@ def download_item(item: dict) -> dict | None:
     from ytdlp_interface import download_video
 
     download_filename = download_video(
-        item.get("url", ""), config.wai.temp_path or config.wai.output_path
+        item.get("url", ""), config.data.wai.temp_path or config.data.wai.output_path
     )
     item["download_filename"] = download_filename
 
@@ -181,23 +183,23 @@ def rename_and_move_item(item: dict) -> dict | None:
     tag_filepath = tag_filename(item.get("download_filename", ""))
     file_name = os.path.basename(tag_filepath)
 
-    if config.wai.temp_path:  # NOT WORKING ?
+    if config.data.wai.temp_path:  # NOT WORKING ?
         safe_move(
             tag_filepath,
-            os.path.join(os.path.abspath(config.wai.output_path), file_name),
+            os.path.join(os.path.abspath(config.data.wai.output_path), file_name),
         )
         _log.msg(
-            f"Moved: {tag_filepath} \n\t-> To: {os.path.abspath(config.wai.output_path)}"
+            f"Moved: {tag_filepath} \n\t-> To: {os.path.abspath(config.data.wai.output_path)}"
         )
         safe_move(
             tag_filepath.replace(".mkv", ".info.json"),
             os.path.join(
-                os.path.abspath(config.wai.output_path),
+                os.path.abspath(config.data.wai.output_path),
                 file_name.replace(".mkv", ".info.json"),
             ),
         )
         _log.msg(
-            f"Moved: {tag_filepath.replace(".mkv", ".info.json")} \n\t-> To: {os.path.abspath(config.wai.output_path)}"
+            f"Moved: {tag_filepath.replace(".mkv", ".info.json")} \n\t-> To: {os.path.abspath(config.data.wai.output_path)}"
         )
 
     item["file_name"] = file_name
@@ -212,7 +214,7 @@ def import_item(item: dict) -> dict | None:
     _season = item["episode_result"].get("season")
     _episode = item["episode_result"].get("episode")
     _filename = item["file_name"]
-    _folder = config.sonarr.in_path
+    _folder = config.data.sonarr.in_path
 
     import_result = import_downloaded_episode(
         _id, _season, _episode, _filename, _folder
@@ -235,15 +237,17 @@ def process_queue(stop_event: threading.Event):
     while not stop_event.is_set():
         with dl_queue_condition:
             while not dl_item and not dl_queue and not stop_event.is_set():
-                if config.debug.debug_print:
+                if config.data.debug and config.data.debug.debug_print:
                     _log.msg(
-                        f"No current item. No queue. Sleeping for at most {config.download_queue.interval} min."
+                        f"No current item. No queue. Sleeping for at most {config.data.download_queue.interval} min."
                     )
-                dl_queue_condition.wait(timeout=config.download_queue.interval * 60)
+                dl_queue_condition.wait(
+                    timeout=config.data.download_queue.interval * 60
+                )
 
             if dl_queue and not dl_item:
                 dl_item = dl_queue.pop(0)
-                if config.download_queue.flip_flop:
+                if config.data.download_queue.flip_flop:
                     _log.msg("Inverting queue")
                     dl_queue.reverse()
                 _json.save_json(dl_item, "current_download.json", True)
@@ -256,6 +260,10 @@ def process_queue(stop_event: threading.Event):
             if not wait_before_loop:
                 continue
 
-            _log.msg(f"Queue thread sleeping for {config.download_queue.interval} min.")
+            _log.msg(
+                f"Queue thread sleeping for {config.data.download_queue.interval} min."
+            )
             with dl_queue_condition:
-                dl_queue_condition.wait(timeout=config.download_queue.interval * 60)
+                dl_queue_condition.wait(
+                    timeout=config.data.download_queue.interval * 60
+                )
