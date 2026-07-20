@@ -13,7 +13,7 @@ certifi==2026.1.4
     #   requests
 cfsonarr @ git+https://github.com/codefaux/python-cfsonarr@c59661134524518921e3a19075a0232b184cc8fc
     # via -r requirements.in
-cfsonarrmatcher @ git+https://github.com/codefaux/python-cfsonarr-matcher@1eee2c2dadd8fc72c4aa6ce4a85a9fff4a3125fc
+cfsonarrmatcher @ git+https://github.com/codefaux/python-cfsonarr-matcher@c7ed8759d290114323988444a49dac41de46f734
     # via -r requirements.in
 charset-normalizer==3.4.4
     # via requests
