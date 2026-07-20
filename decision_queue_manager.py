@@ -158,21 +158,27 @@ def match_and_check(item: dict) -> dict | None:
     main_title = f"{item.get('creator', '')} :: {item.get('title', '')}"
 
     title_result = match_to_show(main_title, show_titles)
-    item["title_result"] = title_result
-    _log.msg(
-        f"Match result: title -> show\n"
-        f"\t{_log._YELLOW}input:{_log._RESET} '{main_title}'\n"
-        f"\t{_log._BLUE if title_result.get('score', 0) >= 70 else _log._RED}score:{_log._RESET} {title_result.get('score', 0)}"
-        f"\t{_log._GREEN}matched show:{_log._RESET} '{title_result.get('matched_show')}'"
-        f" {_log._YELLOW}(id:{title_result.get('matched_id')}){_log._RESET}\n"
-        f"\t{_log._YELLOW}reasons:{_log._RESET} {title_result.get('reason', '')}"
-    )
+    if len(title_result["best_results"]) == 0:
+        _log.msg(f"Series title {_log._RED}did not match.{_log._RESET}")
+    elif len(title_result["best_results"]) == 1:
+        title_result = title_result["best_results"][0]
+        item["title_result"] = title_result
+        _log.msg(
+            f"Match result: title -> show\n"
+            f"\t{_log._YELLOW}input:{_log._RESET} '{main_title}'\n"
+            f"\t{_log._BLUE if title_result.get('score', 0) >= 70 else _log._RED}score:{_log._RESET} {title_result.get('score', 0)}"
+            f"\t{_log._GREEN}matched show:{_log._RESET} '{title_result.get('matched_show')}'"
+            f" {_log._YELLOW}(id:{title_result.get('matched_id')}){_log._RESET}\n"
+            f"\t{_log._YELLOW}reasons:{_log._RESET} {title_result.get('reason', '')}"
+        )
 
-    if title_result["score"] >= 80:
-        candidate_series_ids.append(title_result["matched_id"])
-        matched_id = title_result.get("matched_id")
+        if title_result["score"] >= 80:
+            candidate_series_ids.append(title_result["matched_id"])
+            matched_id = title_result.get("matched_id")
+        else:
+            _log.msg(f"Series title match {_log._RED}not good enough.{_log._RESET}")
     else:
-        _log.msg(f"Series title match {_log._RED}not good enough.{_log._RESET}")
+        raise RuntimeError()
 
     sonarr_relevant_tags = [
         timed_cache(ttl=config.data.decision_queue.cache_ttl)(sonarr.get_tag_detail)(
