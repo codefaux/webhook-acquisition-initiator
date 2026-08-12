@@ -160,7 +160,7 @@ def process_queue(stop_event: threading.Event):
     while not stop_event.is_set():
         with aging_queue_condition:
             while not aging_item and not aging_queue and not stop_event.is_set():
-                if config.data.debug and config.data.debug.debug_print:
+                if config.data.debug and config.data.debug.debug_print == True:
                     _log.msg(
                         f"No current aging item. No aging queue. Sleeping for at most {config.data.aging_queue.interval} min."
                     )
@@ -177,7 +177,7 @@ def process_queue(stop_event: threading.Event):
                 ]
                 if eligible_aging_items:
                     # Sort by next_aging to pick the most overdue item
-                    if config.data.debug and config.data.debug.debug_print:
+                    if config.data.debug and config.data.debug.debug_print == True:
                         _log.msg("Sorting eligible items..")
                     eligible_aging_items.sort(
                         key=lambda item: item.get("next_aging", 0)
@@ -186,7 +186,7 @@ def process_queue(stop_event: threading.Event):
                     aging_queue.remove(aging_item)
                     _json.save_json(aging_item, "current_aging.json", True)
                     save_aging_queue()
-                elif config.data.debug and config.data.debug.debug_print:
+                elif config.data.debug and config.data.debug.debug_print == True:
                     _log.msg("Queue present but no eligible items.")
 
         if aging_item:
@@ -205,7 +205,7 @@ def process_queue(stop_event: threading.Event):
             if not wait_before_loop:
                 continue
 
-        if config.data.debug and config.data.debug.debug_print:
+        if config.data.debug and config.data.debug.debug_print == True:
             _log.msg(
                 f"Aging queue thread sleeping for {config.data.aging_queue.interval} min."
             )

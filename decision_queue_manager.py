@@ -446,7 +446,7 @@ def process_queue(stop_event: threading.Event):
     while not stop_event.is_set():
         with decision_queue_condition:
             while not item and not decision_queue and not stop_event.is_set():
-                if config.data.debug and config.data.debug.debug_print:
+                if config.data.debug and config.data.debug.debug_print == True:
                     _log.msg(
                         f"No current item. No queue. Sleeping for at most {config.data.decision_queue.interval} min."
                     )

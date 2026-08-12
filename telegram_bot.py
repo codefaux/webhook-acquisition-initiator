@@ -244,7 +244,7 @@ async def add_known_chat(update: Update, _):
     if update.effective_chat and update.effective_chat.id not in known_chats:
         known_chats.add(update.effective_chat.id)
         save_known_chats()
-        if config.data.debug and config.data.debug.debug_print:
+        if config.data.debug and config.data.debug.debug_print == True:
             _log.msg(f"Known chats: {known_chats}")
 
 
@@ -252,21 +252,21 @@ async def add_notify_chat(update: Update):
     if update.effective_chat and update.effective_chat.id not in notify_chats:
         notify_chats.add(update.effective_chat.id)
         save_notify_chats()
-        if config.data.debug and config.data.debug.debug_print:
+        if config.data.debug and config.data.debug.debug_print == True:
             _log.msg(f"Notify chats: {notify_chats}")
 
 
 async def remove_known_chat(update: Update):
     if update.effective_chat and update.effective_chat.id in known_chats:
         known_chats.remove(update.effective_chat.id)
-        if config.data.debug and config.data.debug.debug_print:
+        if config.data.debug and config.data.debug.debug_print == True:
             _log.msg(f"Known chats: {known_chats}")
 
 
 async def remove_notify_chat(update: Update):
     if update.effective_chat and update.effective_chat.id in notify_chats:
         notify_chats.remove(update.effective_chat.id)
-        if config.data.debug and config.data.debug.debug_print:
+        if config.data.debug and config.data.debug.debug_print == True:
             _log.msg(f"Notify chats: {notify_chats}")
 
 
